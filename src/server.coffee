@@ -1,9 +1,13 @@
+mosca = require 'mosca'
+
 class Server
+  constructor: ({@port}) ->
   address: =>
-    {address: 'not', port: 'implemented'}
+    {address: '0.0.0.0', port: @port}
 
   start: (callback) =>
-    callback()
+    @server = mosca.Server {@port}
+    @server.on 'ready', callback
 
   stop: =>
 
