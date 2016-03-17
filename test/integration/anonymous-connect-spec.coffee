@@ -2,7 +2,7 @@ mqtt       = require 'mqtt'
 portfinder = require 'portfinder'
 Server     = require '../../src/server'
 
-describe 'Connecting to the server', ->
+describe 'Connecting to the server anonymously', ->
   beforeEach (done) ->
     portfinder.getPort (error, port) =>
       return done error if error?
@@ -16,7 +16,6 @@ describe 'Connecting to the server', ->
     beforeEach ->
       {port} = @sut.address()
       @client  = mqtt.connect("mqtt://localhost:#{port}")
-      # @client  = mqtt.connect("mqtt://meshblu.octoblu.com:1883")
 
     it 'should reject the connection an error', (done) ->
       @client.on 'error', (error) =>
