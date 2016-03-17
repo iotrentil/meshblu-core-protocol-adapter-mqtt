@@ -4,7 +4,7 @@
   "description": "MQTT Protocol Adapter for Meshblu",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "istanbul cover _mocha -- -R spec --require coffee-coverage/register-istanbul"
   },
   "repository": {
     "type": "git",
@@ -20,5 +20,15 @@
   "bugs": {
     "url": "https://github.com/octoblu/meshblu-server-mqtt/issues"
   },
-  "homepage": "https://github.com/octoblu/meshblu-server-mqtt#readme"
+  "homepage": "https://github.com/octoblu/meshblu-server-mqtt#readme",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "coffee-coverage": "^1.0.1",
+    "coffee-script": "^1.10.0",
+    "istanbul": "^0.4.2",
+    "mocha": "^2.4.5",
+    "mocha-istanbul": "^0.2.0",
+    "sinon": "^1.17.3",
+    "sinon-chai": "^2.8.0"
+  }
 }
