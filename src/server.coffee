@@ -1,12 +1,27 @@
-mosca = require 'mosca'
+JobManager = require 'meshblu-core-job-manager'
+RedisNS    = require '@octoblu/redis-ns'
+redis      = require 'redis'
+mosca      = require 'mosca'
 
 class Server
-  constructor: ({@port}) ->
+  constructor: ({@port, redisUri, namespace, jobTimeoutSeconds}) ->
+    @jobManager = new JobManager
+      client: new RedisNS namespace, redis.createClient(redisUri)
+      timeoutSeconds: jobTimeoutSeconds
+
   address: =>
     {address: '0.0.0.0', port: @port}
 
   authenticate: (client, username, password, callback) =>
-    callback new Error('unauthorized')
+    return callback new Error('unauthorized') unless username? && password?
+    job =
+      metadata:
+        auth: {uuid: username, token: password.toString()}
+        jobType: 'Authenticate'
+
+    @jobManager.do 'request', 'response', job, (error) =>
+      return callback error if error?
+    callback null, true
 
   start: (callback) =>
     @server = mosca.Server {@port}
@@ -18,7 +33,6 @@ class Server
     @server.close callback
 
   onConnect: (client) =>
-    console.log client
 
   onReady: (callback) =>
     @server.authenticate = @authenticate

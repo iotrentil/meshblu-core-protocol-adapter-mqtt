@@ -6,7 +6,10 @@ describe 'Connecting to the server anonymously', ->
   beforeEach (done) ->
     portfinder.getPort (error, port) =>
       return done error if error?
-      @sut = new Server {port}
+      @sut = new Server
+        port: port
+        jobTimeoutSeconds: 1
+        
       @sut.start done
 
   afterEach (done) ->
@@ -16,6 +19,9 @@ describe 'Connecting to the server anonymously', ->
     beforeEach ->
       {port} = @sut.address()
       @client  = mqtt.connect("mqtt://localhost:#{port}")
+
+    afterEach (done) ->
+      @client.end done
 
     it 'should reject the connection an error', (done) ->
       @client.on 'error', (error) =>
