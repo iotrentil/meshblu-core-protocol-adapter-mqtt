@@ -9,6 +9,9 @@ describe 'Connecting to the server', ->
       @sut = new Server {port}
       @sut.start done
 
+  afterEach (done) ->
+    @sut.stop done
+
   describe 'when a generic, anonymous mqtt client connects', ->
     it 'should connect', (done) ->
       {port} = @sut.address()

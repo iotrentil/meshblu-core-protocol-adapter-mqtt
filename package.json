@@ -36,6 +36,7 @@
   "dependencies": {
     "colors": "^1.1.2",
     "commander": "^2.9.0",
+    "lodash": "^4.6.1",
     "mosca": "^1.1.2"
   }
 }

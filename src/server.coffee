@@ -9,6 +9,7 @@ class Server
     @server = mosca.Server {@port}
     @server.on 'ready', callback
 
-  stop: =>
+  stop: (callback) =>
+    @server.close callback
 
 module.exports = Server
