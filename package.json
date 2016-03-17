@@ -1,0 +1,24 @@
+{
+  "name": "meshblu-server-mqtt",
+  "version": "1.0.0",
+  "description": "MQTT Protocol Adapter for Meshblu",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/octoblu/meshblu-server-mqtt.git"
+  },
+  "keywords": [
+    "meshblu",
+    "mqtt",
+    "iot"
+  ],
+  "author": "Octoblu, <serveradmin@octoblu.com> (https://octoblu.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/octoblu/meshblu-server-mqtt/issues"
+  },
+  "homepage": "https://github.com/octoblu/meshblu-server-mqtt#readme"
+}
