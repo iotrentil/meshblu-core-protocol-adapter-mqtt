@@ -13,7 +13,12 @@ describe 'Connecting to the server', ->
     @sut.stop done
 
   describe 'when a generic, anonymous mqtt client connects', ->
-    it 'should connect', (done) ->
+    beforeEach ->
       {port} = @sut.address()
       @client  = mqtt.connect("mqtt://localhost:#{port}")
-      @client.on 'connect', => done()
+      # @client  = mqtt.connect("mqtt://meshblu.octoblu.com:1883")
+
+    it 'should reject the connection an error', (done) ->
+      @client.on 'error', (error) =>
+        expect(=> throw error).to.throw 'Connection refused: Bad username or password'
+        done()
