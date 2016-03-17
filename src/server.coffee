@@ -1,3 +1,4 @@
+_          = require 'lodash'
 JobManager = require 'meshblu-core-job-manager'
 RedisNS    = require '@octoblu/redis-ns'
 redis      = require 'redis'
@@ -19,9 +20,10 @@ class Server
         auth: {uuid: username, token: password.toString()}
         jobType: 'Authenticate'
 
-    @jobManager.do 'request', 'response', job, (error) =>
+    @jobManager.do 'request', 'response', job, (error, response) =>
       return callback error if error?
-    callback null, true
+      return callback new Error('unauthorized') unless response.metadata.code == 204
+      callback null, true
 
   start: (callback) =>
     @server = mosca.Server {@port}
