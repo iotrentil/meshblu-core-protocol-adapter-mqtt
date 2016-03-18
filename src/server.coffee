@@ -14,10 +14,9 @@ class Server
     {address: '0.0.0.0', port: @port}
 
   authenticate: (client, username, password, callback) =>
-    return callback new Error('unauthorized') unless username? && password?
     job =
       metadata:
-        auth: {uuid: username, token: password.toString()}
+        auth: {uuid: username, token: password?.toString()}
         jobType: 'Authenticate'
 
     @jobManager.do 'request', 'response', job, (error, response) =>

@@ -3,7 +3,6 @@ JobManager = require 'meshblu-core-job-manager'
 mqtt       = require 'mqtt'
 portfinder = require 'portfinder'
 redis      = require 'redis'
-
 RedisNS    = require '@octoblu/redis-ns'
 Server     = require '../../src/server'
 
@@ -12,6 +11,7 @@ describe 'Connecting to the server with auth', ->
     @jobManager = new JobManager
       client: _.bindAll new RedisNS 'ns', redis.createClient()
       timeoutSeconds: 1
+
     portfinder.getPort (error, port) =>
       return done error if error?
 
@@ -67,13 +67,13 @@ describe 'Connecting to the server with auth', ->
       it 'should get here', ->
         expect(true).to.be.true
 
-    describe 'when the job responds with a status 403', ->
+    describe 'when the job responds with a status 401', ->
       beforeEach (done) ->
         @jobManager.getRequest ['request'], (error, request) =>
           response =
             metadata:
               responseId: request.metadata.responseId
-              code: 403
+              code: 401
               status: 'Forbidden'
 
           @jobManager.createResponse 'response', response, (error) =>
