@@ -19,6 +19,8 @@ describe 'Connecting to the server anonymously', ->
         redisUri: 'redis://localhost:6379'
         namespace: 'ns'
         jobTimeoutSeconds: 1
+        jobLogQueue: 'foo'
+        jobLogSampleRate: 0
 
       @sut.start done
 

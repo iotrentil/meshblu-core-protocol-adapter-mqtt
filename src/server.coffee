@@ -1,14 +1,28 @@
-_          = require 'lodash'
-JobManager = require 'meshblu-core-job-manager'
-RedisNS    = require '@octoblu/redis-ns'
-redis      = require 'redis'
-mosca      = require 'mosca'
+_                = require 'lodash'
+PooledJobManager = require 'meshblu-core-pooled-job-manager'
+RedisNS          = require '@octoblu/redis-ns'
+redis            = require 'redis'
+mosca            = require 'mosca'
+JobLogger        = require 'job-logger'
+{Pool}           = require 'generic-pool'
 
 class Server
-  constructor: ({@port, redisUri, namespace, jobTimeoutSeconds}) ->
-    @jobManager = new JobManager
-      client: new RedisNS namespace, redis.createClient(redisUri)
-      timeoutSeconds: jobTimeoutSeconds
+  constructor: (options) ->
+    {@port, @redisUri, @namespace, @jobTimeoutSeconds} = options
+    {@jobLogRedisUri, @jobLogQueue, @jobLogSampleRate} = options
+
+    connectionPool = @_createConnectionPool()
+    jobLogger = new JobLogger
+      indexPrefix: 'metric:meshblu-server-mqtt'
+      type: 'meshblu-server-mqtt:request'
+      client: redis.createClient(@jobLogRedisUri)
+      jobLogQueue: @jobLogQueue
+      sampleRate: @jobLogSampleRate
+
+    @jobManager = new PooledJobManager
+      timeoutSeconds: @jobTimeoutSeconds
+      pool: connectionPool
+      jobLogger: jobLogger
 
   address: =>
     {address: '0.0.0.0', port: @port}
@@ -38,5 +52,29 @@ class Server
   onReady: (callback) =>
     @server.authenticate = @authenticate
     callback()
+
+  _createConnectionPool: =>
+    connectionPool = new Pool
+      max: @connectionPoolMaxConnections
+      min: 0
+      returnToHead: true # sets connection pool to stack instead of queue behavior
+      create: (callback) =>
+        client = new RedisNS @namespace, redis.createClient(@redisUri)
+
+        client.on 'end', ->
+          client.hasError = new Error 'ended'
+
+        client.on 'error', (error) ->
+          client.hasError = error
+          callback error if callback?
+
+        client.once 'ready', ->
+          callback null, client
+          callback = null
+
+      destroy: (client) => client.end true
+      validate: (client) => !client.hasError?
+
+    return connectionPool
 
 module.exports = Server
