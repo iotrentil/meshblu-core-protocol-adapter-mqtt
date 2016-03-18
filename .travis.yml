@@ -1,9 +1,16 @@
 language: node_js
 node_js:
 - '5'
+env:
+  - CXX=g++-4.8
 addons:
   code_climate:
     repo_token: "6e3a3253aec7cd835510294252864482ce626550a6d947251c47e887ddd1a0d0"
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.8
 before_script:
 - npm install -g codeclimate-test-reporter
 after_script:
