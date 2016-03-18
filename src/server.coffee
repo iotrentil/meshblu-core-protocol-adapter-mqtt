@@ -1,28 +1,22 @@
-_                = require 'lodash'
-PooledJobManager = require 'meshblu-core-pooled-job-manager'
-RedisNS          = require '@octoblu/redis-ns'
-redis            = require 'redis'
-mosca            = require 'mosca'
-JobLogger        = require 'job-logger'
-{Pool}           = require 'generic-pool'
+_                     = require 'lodash'
+RedisPooledJobManager = require 'meshblu-core-redis-pooled-job-manager'
+mosca                 = require 'mosca'
 
 class Server
   constructor: (options) ->
-    {@port, @redisUri, @namespace, @jobTimeoutSeconds} = options
-    {@jobLogRedisUri, @jobLogQueue, @jobLogSampleRate} = options
+    {@port, redisUri, namespace, jobTimeoutSeconds, connectionPoolMaxConnections} = options
+    {jobLogQueue, jobLogRedisUri, jobLogSampleRate} = options
 
-    connectionPool = @_createConnectionPool()
-    jobLogger = new JobLogger
-      indexPrefix: 'metric:meshblu-server-mqtt'
-      type: 'meshblu-server-mqtt:request'
-      client: redis.createClient(@jobLogRedisUri)
-      jobLogQueue: @jobLogQueue
-      sampleRate: @jobLogSampleRate
-
-    @jobManager = new PooledJobManager
-      timeoutSeconds: @jobTimeoutSeconds
-      pool: connectionPool
-      jobLogger: jobLogger
+    @jobManager = new RedisPooledJobManager
+      jobLogIndexPrefix: 'metric:meshblu-server-mqtt'
+      jobLogQueue: jobLogQueue
+      jobLogRedisUri: jobLogRedisUri
+      jobLogSampleRate: jobLogSampleRate
+      jobLogType: 'meshblu-server-mqtt:request'
+      jobTimeoutSeconds: jobTimeoutSeconds
+      maxConnections: connectionPoolMaxConnections
+      namespace: namespace
+      redisUri: redisUri
 
   address: =>
     {address: '0.0.0.0', port: @port}
@@ -52,29 +46,5 @@ class Server
   onReady: (callback) =>
     @server.authenticate = @authenticate
     callback()
-
-  _createConnectionPool: =>
-    connectionPool = new Pool
-      max: @connectionPoolMaxConnections
-      min: 0
-      returnToHead: true # sets connection pool to stack instead of queue behavior
-      create: (callback) =>
-        client = new RedisNS @namespace, redis.createClient(@redisUri)
-
-        client.on 'end', ->
-          client.hasError = new Error 'ended'
-
-        client.on 'error', (error) ->
-          client.hasError = error
-          callback error if callback?
-
-        client.once 'ready', ->
-          callback null, client
-          callback = null
-
-      destroy: (client) => client.end true
-      validate: (client) => !client.hasError?
-
-    return connectionPool
 
 module.exports = Server
