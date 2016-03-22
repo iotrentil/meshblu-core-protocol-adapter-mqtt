@@ -39,7 +39,7 @@ class Connect
       return callback error if error?
 
   _createJobManager: (callback) =>
-    client = _.bindAll new RedisNS 'ns', redis.createClient()
+    client = new RedisNS 'ns', redis.createClient()
     @jobManager = new JobManager client: client, timeoutSeconds: 1
     return callback null, @jobManager
 

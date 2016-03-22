@@ -9,7 +9,7 @@ Server     = require '../../src/server'
 describe 'Connecting to the server anonymously', ->
   beforeEach (done) ->
     @jobManager = new JobManager
-      client: _.bindAll new RedisNS 'ns', redis.createClient()
+      client: new RedisNS 'ns', redis.createClient()
       timeoutSeconds: 1
 
     portfinder.getPort (error, port) =>

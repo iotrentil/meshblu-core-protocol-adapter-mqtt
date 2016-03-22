@@ -12,7 +12,10 @@ describe 'Update', ->
 
   describe 'when update is called', ->
     beforeEach (done) ->
-      message = JSON.stringify uuid: 'u2', foo: 'bar'
+      message = JSON.stringify
+        uuid: 'u2'
+        foo: 'bar'
+        callbackId: 'callback-eye-D'
       @client.publish 'update', message, done
 
     it 'should create an update job', (done) ->
@@ -73,10 +76,15 @@ describe 'Update', ->
         expect(message).to.containSubset
           topic: 'update'
           data: {}
+          _request:
+            callbackId: 'callback-eye-D'
 
     describe 'when the update times out', ->
       beforeEach (done) ->
+        @timeout 3000
         @client.on 'error', (@error) => done()
+        @jobManager.getRequest ['request'], (error, request) =>
+          return done error if error?
 
       it 'should send an error message to the client', ->
         expect(=> throw @error).to.throw 'Response timeout exceeded'
