@@ -12,10 +12,15 @@ class MQTTHandler
       rawData: packet.payload
 
     @jobManager.do 'request', 'response', request, (error, response) =>
-      return @_emitError error if error?
+      return @_emitError packet.payload, error if error?
 
-  _emitError: (error) =>
-    @server.publish ''
+  _emitError: (payload, error) =>
+    message =
+      topic: 'error'
+      payload:
+        message: error.message
+      _request: payload
+    @server.publish @client.auth.uuid, message
 
 
 module.exports = MQTTHandler
