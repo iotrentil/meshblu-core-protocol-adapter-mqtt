@@ -71,6 +71,14 @@ describe 'Connecting to the server with auth', ->
       it 'should get here', ->
         expect(true).to.be.true
 
+      describe 'when the client subscribes to itself', ->
+        beforeEach (done) ->
+          @client.subscribe 'u', (error, @granted) =>
+            return done error
+
+        it 'should get here', ->
+          expect(@granted).to.deep.equal [{topic: 'u', qos: 0}]
+
     describe 'when the job responds with a status 401', ->
       beforeEach (done) ->
         @jobManager.getRequest ['request'], (error, request) =>

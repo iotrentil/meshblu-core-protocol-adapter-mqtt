@@ -10,5 +10,22 @@ describe 'Message', ->
   afterEach (done) ->
     @connection.stopAll done
 
-  it 'should get here', ->
-    return
+  describe 'when message is called', ->
+    beforeEach (done) ->
+      message = JSON.stringify devices: ['*'], payload: 'hi'
+      @client.publish 'message', message, done
+
+    it 'should create a message job', (done) ->
+      @jobManager.getRequest ['request'], (error, request) =>
+        return done error if error?
+
+        expect(request.metadata.responseId).to.exist
+        delete request.metadata.responseId # We don't know what its gonna be
+
+        expect(request).to.deep.equal
+          metadata:
+            jobType: 'SendMessage'
+            auth: {uuid: 'u', token: 'p'}
+          rawData: '{"devices":["*"],"payload":"hi"}'
+
+        done()
