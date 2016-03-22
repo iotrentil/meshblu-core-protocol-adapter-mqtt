@@ -31,8 +31,9 @@ class MQTTHandler
     @jobManager.do 'request', 'response', request, (error, response) =>
       return @_emitError packet.payload, error if error?
       return @_emitError packet.payload, new Error('No Response') unless response?
-      # unless response.code == 204
-      return @_emitError packet.payload, new Error("Update failed: #{response.metadata.status}")
+      unless response.metadata.code == 204
+        return @_emitError packet.payload, new Error("Update failed: #{response.metadata.status}")
+      return @_emitTopic packet.payload, 'update', {}
 
   onPublished: (packet) =>
     topic = packet.topic
@@ -41,12 +42,14 @@ class MQTTHandler
     fn(packet)
 
   _emitError: (originalPacket, error) =>
+    @_emitTopic originalPacket, 'error', message: error.message
+
+  _emitTopic: (originalPacket, topic, payload) =>
     packet =
       topic: @client.auth.uuid
       payload: JSON.stringify
-        topic: 'error'
-        payload:
-          message: error.message
+        topic: topic
+        payload: payload
         _request: originalPacket.payload
     @server.publish packet
 

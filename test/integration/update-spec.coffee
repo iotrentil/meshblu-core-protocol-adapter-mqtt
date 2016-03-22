@@ -50,3 +50,26 @@ describe 'Update', ->
 
       it 'should send an error message to the client', ->
         expect(=> throw @error).to.throw 'Update failed: Forbidden'
+
+    describe 'when the update succeeds', ->
+      beforeEach (done) ->
+        @client.on 'message', (@fakeTopic, @buffer) => done()
+
+        @jobManager.getRequest ['request'], (error, request) =>
+          return done error if error?
+          return done new Error('no request received') unless request?
+
+          response =
+            metadata:
+              responseId: request.metadata.responseId
+              code: 204
+              status: 'No Content'
+
+          @jobManager.createResponse 'response', response, (error) =>
+            return done error if error?
+
+      it 'should send a success message to the client', ->
+        message = JSON.parse @buffer.toString()
+        expect(message).to.containSubset
+          topic: 'update'
+          payload: {}
