@@ -6,6 +6,7 @@ class MQTTHandler
     @JOB_MAP =
       'message': @handleSendMessage
       'update':  @handleUpdate
+      'whoami':  @handleWhoami
 
   handleSendMessage: (packet) =>
     request =
@@ -35,6 +36,21 @@ class MQTTHandler
       unless response.metadata.code == 204
         return @_emitError packet, new Error("Update failed: #{response.metadata.status}")
       return @_emitTopic packet, 'update', {}
+
+  handleWhoami: (packet) =>
+    request =
+      metadata:
+        jobType: 'GetDevice'
+        auth: @client.auth
+        toUuid: @client.auth.uuid
+
+    @jobManager.do 'request', 'response', request, (error, response) =>
+      return @_emitError packet, error if error?
+      return @_emitError packet, new Error('No Response') unless response?
+      unless response.metadata.code == 200
+        return @_emitError packet, new Error("Whoami failed: #{response.metadata.status}")
+      return @_emitTopic packet, 'whoami', JSON.parse(response.rawData)
+
 
   onPublished: (packet) =>
     topic = packet.topic
