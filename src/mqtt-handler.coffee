@@ -1,26 +1,51 @@
+_ = require 'lodash'
+
 class MQTTHandler
   constructor: ({@client, @jobManager, @server}) ->
 
-  @JOB_MAP:
-    'message': 'SendMessage'
+    @JOB_MAP =
+      'message': @handleSendMessage
+      'update':  @handleUpdate
 
-  onPublished: (packet) =>
+  handleSendMessage: (packet) =>
     request =
       metadata:
-        jobType: MQTTHandler.JOB_MAP[packet.topic]
+        jobType: 'SendMessage'
         auth: @client.auth
       rawData: packet.payload
 
     @jobManager.do 'request', 'response', request, (error, response) =>
       return @_emitError packet.payload, error if error?
 
-  _emitError: (payload, error) =>
-    message =
-      topic: 'error'
-      payload:
-        message: error.message
-      _request: payload
-    @server.publish @client.auth.uuid, message
+  handleUpdate: (packet) =>
+    data = JSON.parse packet.payload
+    toUuid = data.uuid ? @client.auth.uuid
+
+    request =
+      metadata:
+        jobType: 'UpdateDevice'
+        auth: @client.auth
+        toUuid: toUuid
+      data: _.omit(data, 'uuid')
+
+    @jobManager.do 'request', 'response', request, (error, response) =>
+      return @_emitError packet.payload, error if error?
+
+  onPublished: (packet) =>
+    topic = packet.topic
+    fn = @JOB_MAP[topic]
+    return @_emitError packet, new Error("Topic '#{topic}' is not valid") unless _.isFunction fn
+    fn(packet)
+
+  _emitError: (originalPacket, error) =>
+    packet =
+      topic: @client.auth.uuid
+      payload: JSON.stringify
+        topic: 'error'
+        payload:
+          message: error.message
+        _request: originalPacket.payload
+    @server.publish packet
 
 
 module.exports = MQTTHandler

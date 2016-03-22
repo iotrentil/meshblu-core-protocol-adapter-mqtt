@@ -25,8 +25,17 @@ class Connect
 
     {port} = @server.address()
     @client = mqtt.connect("mqtt://u:p@localhost:#{port}")
-    @client.on 'connect', => callback null, @client
+    @client.on 'connect', =>
+      @client.subscribe 'u', (error, granted) =>
+        throw error if error?
+        throw new Error('Failed to subscribe') unless _.isEqual granted, [{topic: 'u', qos: 0}]
+        callback null, @client
+
     @client.on 'error', callback
+    @client.on 'message', (fakeTopic, buffer) =>
+      message = JSON.parse buffer.toString()
+      throw new Error("unhandled: #{message.payload.message}") if message.topic == 'error'
+
     @_respondToLoginAttempt (error) =>
       return callback error if error?
 
