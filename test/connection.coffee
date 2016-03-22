@@ -33,7 +33,7 @@ class Connect
 
     @client.on 'message', (fakeTopic, buffer) =>
       message = JSON.parse buffer.toString()
-      @client.emit 'error', new Error(message.payload.message) if message.topic == 'error'
+      @client.emit 'error', new Error(message.data.message) if message.topic == 'error'
 
     @_respondToLoginAttempt (error) =>
       return callback error if error?

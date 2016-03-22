@@ -27,7 +27,7 @@ describe 'Update', ->
             jobType: 'UpdateDevice'
             auth: {uuid: 'u', token: 'p'}
             toUuid: 'u2'
-          rawData: '{"foo":"bar"}'
+          rawData: '{"$set":{"foo":"bar"}}'
 
         done()
 
@@ -72,7 +72,7 @@ describe 'Update', ->
         message = JSON.parse @buffer.toString()
         expect(message).to.containSubset
           topic: 'update'
-          payload: {}
+          data: {}
 
     describe 'when the update times out', ->
       beforeEach (done) ->

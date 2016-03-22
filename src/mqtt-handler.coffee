@@ -26,7 +26,7 @@ class MQTTHandler
         jobType: 'UpdateDevice'
         auth: @client.auth
         toUuid: toUuid
-      data: _.omit(data, 'uuid')
+      data: $set: _.omit(data, 'uuid')
 
     @jobManager.do 'request', 'response', request, (error, response) =>
       return @_emitError packet.payload, error if error?
@@ -49,7 +49,7 @@ class MQTTHandler
       topic: @client.auth.uuid
       payload: JSON.stringify
         topic: topic
-        payload: payload
+        data: payload
         _request: originalPacket.payload
     @server.publish packet
 
