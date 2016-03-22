@@ -30,3 +30,23 @@ describe 'Update', ->
           rawData: '{"foo":"bar"}'
 
         done()
+
+    describe 'when the update fails', ->
+      beforeEach (done) ->
+        @client.on 'error', (@error) => done()
+
+        @jobManager.getRequest ['request'], (error, request) =>
+          return done error if error?
+          return done new Error('no request received') unless request?
+
+          response =
+            metadata:
+              responseId: request.metadata.responseId
+              code: 403
+              status: 'Forbidden'
+
+          @jobManager.createResponse 'response', response, (error) =>
+            return done error if error?
+
+      it 'should send an error message to the client', ->
+        expect(=> throw @error).to.throw 'Update failed: Forbidden'

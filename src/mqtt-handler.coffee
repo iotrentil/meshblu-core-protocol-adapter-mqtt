@@ -30,6 +30,9 @@ class MQTTHandler
 
     @jobManager.do 'request', 'response', request, (error, response) =>
       return @_emitError packet.payload, error if error?
+      return @_emitError packet.payload, new Error('No Response') unless response?
+      # unless response.code == 204
+      return @_emitError packet.payload, new Error("Update failed: #{response.metadata.status}")
 
   onPublished: (packet) =>
     topic = packet.topic

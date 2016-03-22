@@ -31,10 +31,9 @@ class Connect
         throw new Error('Failed to subscribe') unless _.isEqual granted, [{topic: 'u', qos: 0}]
         callback null, @client
 
-    @client.on 'error', callback
     @client.on 'message', (fakeTopic, buffer) =>
       message = JSON.parse buffer.toString()
-      throw new Error("unhandled: #{message.payload.message}") if message.topic == 'error'
+      @client.emit 'error', new Error(message.payload.message) if message.topic == 'error'
 
     @_respondToLoginAttempt (error) =>
       return callback error if error?
