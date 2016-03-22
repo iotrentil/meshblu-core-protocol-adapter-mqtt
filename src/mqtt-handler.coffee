@@ -4,9 +4,24 @@ class MQTTHandler
   constructor: ({@client, @jobManager, @server}) ->
 
     @JOB_MAP =
-      'message': @handleSendMessage
-      'update':  @handleUpdate
-      'whoami':  @handleWhoami
+      'message':    @handleSendMessage
+      'resetToken': @handleResetToken
+      'update':     @handleUpdate
+      'whoami':     @handleWhoami
+
+  handleResetToken: (packet) =>
+    request =
+      metadata:
+        jobType: 'ResetToken'
+        auth: @client.auth
+        toUuid: @client.auth.uuid
+
+    @jobManager.do 'request', 'response', request, (error, response) =>
+      return @_emitError packet, error if error?
+      return @_emitError packet, new Error('No Response') unless response?
+      unless response.metadata.code == 200
+        return @_emitError packet, new Error("resetToken failed: #{response.metadata.status}")
+      return @_emitTopic packet, 'resetToken', JSON.parse(response.rawData)
 
   handleSendMessage: (packet) =>
     request =
@@ -34,7 +49,7 @@ class MQTTHandler
       return @_emitError packet, error if error?
       return @_emitError packet, new Error('No Response') unless response?
       unless response.metadata.code == 204
-        return @_emitError packet, new Error("Update failed: #{response.metadata.status}")
+        return @_emitError packet, new Error("update failed: #{response.metadata.status}")
       return @_emitTopic packet, 'update', {}
 
   handleWhoami: (packet) =>
@@ -48,7 +63,7 @@ class MQTTHandler
       return @_emitError packet, error if error?
       return @_emitError packet, new Error('No Response') unless response?
       unless response.metadata.code == 200
-        return @_emitError packet, new Error("Whoami failed: #{response.metadata.status}")
+        return @_emitError packet, new Error("whoami failed: #{response.metadata.status}")
       return @_emitTopic packet, 'whoami', JSON.parse(response.rawData)
 
 

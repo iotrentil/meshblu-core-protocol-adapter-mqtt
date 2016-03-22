@@ -49,7 +49,7 @@ describe 'Whoami', ->
             return done error if error?
 
       it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'Whoami failed: Forbidden'
+        expect(=> throw @error).to.throw 'whoami failed: Forbidden'
 
     describe 'when the whoami succeeds', ->
       beforeEach (done) ->

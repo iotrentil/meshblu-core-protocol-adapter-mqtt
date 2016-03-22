@@ -1,6 +1,6 @@
 Connection = require '../connection'
 
-describe 'Update', ->
+describe 'Reset Token', ->
   beforeEach (done) ->
     @connection = new Connection
     @connection.connect (error, {@server, @client, @jobManager}) =>
@@ -10,15 +10,12 @@ describe 'Update', ->
   afterEach (done) ->
     @connection.stopAll done
 
-  describe 'when update is called', ->
+  describe 'when resetToken is called', ->
     beforeEach (done) ->
-      message = JSON.stringify
-        uuid: 'u2'
-        foo: 'bar'
-        callbackId: 'callback-eye-D'
-      @client.publish 'update', message, done
+      message = JSON.stringify callbackId: 'callback-eye-D'
+      @client.publish 'resetToken', message, done
 
-    it 'should create an update job', (done) ->
+    it 'should create a resetToken job', (done) ->
       @jobManager.getRequest ['request'], (error, request) =>
         return done error if error?
 
@@ -27,14 +24,14 @@ describe 'Update', ->
 
         expect(request).to.deep.equal
           metadata:
-            jobType: 'UpdateDevice'
+            jobType: 'ResetToken'
             auth: {uuid: 'u', token: 'p'}
-            toUuid: 'u2'
-          rawData: '{"$set":{"foo":"bar"}}'
+            toUuid: 'u'
+          rawData: 'null'
 
         done()
 
-    describe 'when the update fails', ->
+    describe 'when the resetToken fails', ->
       beforeEach (done) ->
         @client.on 'error', (@error) => done()
 
@@ -52,9 +49,9 @@ describe 'Update', ->
             return done error if error?
 
       it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'update failed: Forbidden'
+        expect(=> throw @error).to.throw 'resetToken failed: Forbidden'
 
-    describe 'when the update succeeds', ->
+    describe 'when the resetToken succeeds', ->
       beforeEach (done) ->
         @client.on 'message', (@fakeTopic, @buffer) => done()
 
@@ -65,8 +62,9 @@ describe 'Update', ->
           response =
             metadata:
               responseId: request.metadata.responseId
-              code: 204
+              code: 200
               status: 'No Content'
+            rawData: '{"uuid":"u","token":"t"}'
 
           @jobManager.createResponse 'response', response, (error) =>
             return done error if error?
@@ -74,12 +72,14 @@ describe 'Update', ->
       it 'should send a success message to the client', ->
         message = JSON.parse @buffer.toString()
         expect(message).to.containSubset
-          topic: 'update'
-          data: {}
+          topic: 'resetToken'
+          data:
+            uuid: 'u'
+            token: 't'
           _request:
             callbackId: 'callback-eye-D'
 
-    describe 'when the update times out', ->
+    describe 'when the resetToken times out', ->
       beforeEach (done) ->
         @timeout 3000
         @client.on 'error', (@error) => done()
