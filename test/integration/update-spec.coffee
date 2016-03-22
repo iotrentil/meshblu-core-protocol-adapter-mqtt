@@ -73,3 +73,10 @@ describe 'Update', ->
         expect(message).to.containSubset
           topic: 'update'
           payload: {}
+
+    describe 'when the update times out', ->
+      beforeEach (done) ->
+        @client.on 'error', (@error) => done()
+
+      it 'should send an error message to the client', ->
+        expect(=> throw @error).to.throw 'Response timeout exceeded'
