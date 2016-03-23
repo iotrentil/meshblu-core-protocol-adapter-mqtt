@@ -1,5 +1,5 @@
 {
-  "name": "meshblu-server-mqtt",
+  "name": "meshblu-core-protocol-adapter-mqtt",
   "version": "1.0.0",
   "description": "MQTT Protocol Adapter for Meshblu",
   "main": "index.js",
