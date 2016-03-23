@@ -1,7 +1,8 @@
 _ = require 'lodash'
+async = require 'async'
 
 class MQTTHandler
-  constructor: ({@client, @jobManager, @server}) ->
+  constructor: ({@client, @jobManager, @messengerFactory, @server}) ->
 
     @JOB_MAP =
       'generateAndStoreToken': @handleGenerateAndStoreToken
@@ -10,6 +11,16 @@ class MQTTHandler
       'resetToken':            @handleResetToken
       'update':                @handleUpdate
       'whoami':                @handleWhoami
+
+  initialize: (callback) =>
+    @messenger = @messengerFactory.build()
+
+    @messenger.on 'message', (channel, message) =>
+      @_emitMessage 'message', message
+
+    async.each ['received', 'config', 'data'], (type, next) =>
+      @messenger.subscribe {type, uuid: @client.auth.uuid}, next
+    , callback
 
   handleGenerateAndStoreToken: (packet) =>
     @_doJob 'CreateSessionToken', 'generateAndStoreToken', (error, response) =>
@@ -82,6 +93,14 @@ class MQTTHandler
   _emitError: (originalPacket, error) =>
     @_emitTopic originalPacket, 'error', message: error.message
 
+  _emitMessage: (topic, payload) =>
+    packet =
+      topic: @client.auth.uuid
+      payload: JSON.stringify
+        topic: topic
+        data: payload
+    @server.publish packet
+
   _emitTopic: (originalPacket, topic, payload) =>
     packet =
       topic: @client.auth.uuid
@@ -90,6 +109,7 @@ class MQTTHandler
         data: payload
         _request: JSON.parse(originalPacket.payload.toString())
     @server.publish packet
+
 
 
 module.exports = MQTTHandler

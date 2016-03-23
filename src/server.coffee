@@ -1,12 +1,17 @@
 _                     = require 'lodash'
-RedisPooledJobManager = require 'meshblu-core-redis-pooled-job-manager'
 mosca                 = require 'mosca'
+RedisPooledJobManager = require 'meshblu-core-redis-pooled-job-manager'
+redis                 = require 'ioredis'
+RedisNS               = require '@octoblu/redis-ns'
+UuidAliasResolver     = require 'meshblu-uuid-alias-resolver'
 MQTTHandler           = require './mqtt-handler'
+MessengerFactory      = require './messenger-factory'
 
 class Server
   constructor: (options) ->
     {@port, redisUri, namespace, jobTimeoutSeconds, connectionPoolMaxConnections} = options
     {jobLogQueue, jobLogRedisUri, jobLogSampleRate} = options
+    {aliasServerUri} = options
 
     @jobManager = new RedisPooledJobManager
       jobLogIndexPrefix: 'metric:meshblu-server-mqtt'
@@ -18,6 +23,13 @@ class Server
       maxConnections: connectionPoolMaxConnections
       namespace: namespace
       redisUri: redisUri
+
+    uuidAliasClient = _.bindAll new RedisNS 'uuid-alias', redis.createClient(redisUri)
+    uuidAliasResolver = new UuidAliasResolver
+      cache: uuidAliasClient
+      aliasServerUri: aliasServerUri
+
+    @messengerFactory = new MessengerFactory {uuidAliasResolver, redisUri, namespace}
 
   address: =>
     {address: '0.0.0.0', port: @port}
@@ -33,8 +45,10 @@ class Server
       return callback error if error?
       return callback new Error('unauthorized') unless response.metadata.code == 204
       client.auth = auth
-      client.handler = new MQTTHandler {client, @jobManager, @server}
-      callback null, true
+      client.handler = new MQTTHandler {client, @jobManager, @messengerFactory, @server}
+      client.handler.initialize (error) =>
+        return callback error if error?
+        callback null, true
 
   authorizeSubscribe: (client, topic, callback) =>
     return callback new Error('Client is unknown') unless client?

@@ -7,18 +7,19 @@ redis      = require 'redis'
 RedisNS    = require '@octoblu/redis-ns'
 Server     = require '../src/server'
 
-class Connect
+class Connection
   constructor: ->
 
   connect: (callback) =>
     async.series {
+      redisClient: @_createRedisClient
       jobManager: @_createJobManager
       server: @_createServer
       client: @_createClient
     }, callback
 
   stopAll: (callback) =>
-    async.series [@_stopClient, @_stopServer, @_stopJobManager], callback
+    async.series [@_stopClient, @_stopServer, @_stopJobManager, @_stopRedisClient], callback
 
   _createClient: (callback) =>
     callback = _.once callback
@@ -42,6 +43,10 @@ class Connect
     client = new RedisNS 'ns', redis.createClient()
     @jobManager = new JobManager client: client, timeoutSeconds: 1
     return callback null, @jobManager
+
+  _createRedisClient: (callback) =>
+    @redisClient = new RedisNS 'ns', redis.createClient()
+    return callback null, @redisClient
 
   _createServer: (callback) =>
     portfinder.getPort (error, port) =>
@@ -80,7 +85,11 @@ class Connect
     @jobManager # uhm... *cough* ...nothing to see here
     callback()
 
+  _stopRedisClient: (callback) =>
+    @redisClient.end false # flush false, silently fails currently running commands
+    callback()
+
   _stopServer: (callback) =>
     @server.stop callback
 
-module.exports = Connect
+module.exports = Connection
