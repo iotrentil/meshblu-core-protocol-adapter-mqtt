@@ -4,10 +4,25 @@ class MQTTHandler
   constructor: ({@client, @jobManager, @server}) ->
 
     @JOB_MAP =
-      'message':    @handleSendMessage
-      'resetToken': @handleResetToken
-      'update':     @handleUpdate
-      'whoami':     @handleWhoami
+      'getPublicKey': @handleGetPublicKey
+      'message':      @handleSendMessage
+      'resetToken':   @handleResetToken
+      'update':       @handleUpdate
+      'whoami':       @handleWhoami
+
+  handleGetPublicKey: (packet) =>
+    request =
+      metadata:
+        jobType: 'GetDevicePublicKey'
+        auth: @client.auth
+        toUuid: @client.auth.uuid
+
+    @jobManager.do 'request', 'response', request, (error, response) =>
+      return @_emitError packet, error if error?
+      return @_emitError packet, new Error('No Response') unless response?
+      unless response.metadata.code == 200
+        return @_emitError packet, new Error("getPublicKey failed: #{response.metadata.status}")
+      return @_emitTopic packet, 'getPublicKey', JSON.parse(response.rawData)
 
   handleResetToken: (packet) =>
     request =
