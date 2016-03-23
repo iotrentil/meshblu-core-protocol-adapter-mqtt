@@ -16,7 +16,10 @@ class MQTTHandler
     @messenger = @messengerFactory.build()
 
     @messenger.on 'message', (channel, message) =>
-      @_emitMessage 'message', message
+      @_emitEvent 'message', message
+
+    @messenger.on 'config', (channel, message) =>
+      @_emitEvent 'config', message
 
     async.each ['received', 'config', 'data'], (type, next) =>
       @messenger.subscribe {type, uuid: @client.auth.uuid}, next
@@ -111,7 +114,7 @@ class MQTTHandler
   _emitError: (originalPacket, error) =>
     @_emitTopic originalPacket, 'error', message: error.message
 
-  _emitMessage: (topic, payload) =>
+  _emitEvent: (topic, payload) =>
     packet =
       topic: @client.auth.uuid
       payload: JSON.stringify
