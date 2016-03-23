@@ -4,11 +4,26 @@ class MQTTHandler
   constructor: ({@client, @jobManager, @server}) ->
 
     @JOB_MAP =
-      'getPublicKey': @handleGetPublicKey
-      'message':      @handleSendMessage
-      'resetToken':   @handleResetToken
-      'update':       @handleUpdate
-      'whoami':       @handleWhoami
+      'generateAndStoreToken': @handleGenerateAndStoreToken
+      'getPublicKey':          @handleGetPublicKey
+      'message':               @handleSendMessage
+      'resetToken':            @handleResetToken
+      'update':                @handleUpdate
+      'whoami':                @handleWhoami
+
+  handleGenerateAndStoreToken: (packet) =>
+    request =
+      metadata:
+        jobType: 'CreateSessionToken'
+        auth: @client.auth
+        toUuid: @client.auth.uuid
+
+    @jobManager.do 'request', 'response', request, (error, response) =>
+      return @_emitError packet, error if error?
+      return @_emitError packet, new Error('No Response') unless response?
+      unless response.metadata.code == 200
+        return @_emitError packet, new Error("generateAndStoreToken failed: #{response.metadata.status}")
+      return @_emitTopic packet, 'generateAndStoreToken', JSON.parse(response.rawData)
 
   handleGetPublicKey: (packet) =>
     request =
