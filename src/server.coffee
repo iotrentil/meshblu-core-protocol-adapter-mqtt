@@ -39,9 +39,9 @@ class Server
       uuid:  username
       token: password?.toString()
 
-    job = {metadata: {jobType: 'Authenticate', auth: auth}}
+    request = {metadata: {jobType: 'Authenticate', auth: auth}}
 
-    @jobManager.do 'request', 'response', job, (error, response) =>
+    @jobManager.do 'request', 'response', request, (error, response) =>
       return callback error if error?
       return callback new Error('unauthorized') unless response.metadata.code == 204
       client.auth = auth
@@ -53,7 +53,9 @@ class Server
   authorizeSubscribe: (client, topic, callback) =>
     return callback new Error('Client is unknown') unless client?
     return callback new Error('Client is unauthorized') unless client.auth?
-    return callback null, (topic == client.auth.uuid)
+    return callback null, true if topic == client.auth.uuid
+
+    client.handler.subscribe topic, callback
 
   start: (callback) =>
     @server = mosca.Server {@port}

@@ -77,6 +77,24 @@ class MQTTHandler
     return @_emitError packet, new Error("Topic '#{topic}' is not valid") unless _.isFunction fn
     fn(packet)
 
+  subscribe: (uuid, callback) =>
+    request =
+      metadata:
+        jobType: 'GetAuthorizedSubscriptionTypes'
+        auth: @client.auth
+        toUuid: uuid
+      data: ['config', 'data', 'received']
+
+    @jobManager.do 'request', 'response', request, (error, response) =>
+      return callback error if error?
+      return callback null, false unless response.metadata.code == 204
+      data = JSON.parse response.rawData
+      async.each data.types, (type, next) =>
+        @messenger.subscribe {type, uuid: uuid}, next
+      , (error) =>
+        return callback error if error?
+        callback null, true
+
   _doJob: (jobType, eventName, callback) =>
     request =
       metadata:
