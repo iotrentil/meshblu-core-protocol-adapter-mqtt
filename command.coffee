@@ -24,7 +24,7 @@ class Command
       port: parseInt(commander.port || process.env.MESHBLU_SERVER_MQTT_PORT || 1883)
       jobLogQueue: process.env.JOB_LOG_QUEUE
       jobLogRedisUri: process.env.JOB_LOG_REDIS_URI
-      jobLogSampleRate: parseInt process.env.JOB_LOG_SAMPLE_RATE
+      jobLogSampleRate: parseFloat process.env.JOB_LOG_SAMPLE_RATE
       jobTimeoutSeconds: parseInt process.env.JOB_TIMEOUT_SECONDS
       connectionPoolMaxConnections: parseInt process.env.MAX_CONNECTIONS
       namespace: process.env.NAMESPACE
