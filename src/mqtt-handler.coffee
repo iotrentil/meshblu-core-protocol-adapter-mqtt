@@ -131,6 +131,4 @@ class MQTTHandler
         _request: JSON.parse(originalPacket.payload.toString())
     @server.publish packet
 
-
-
 module.exports = MQTTHandler

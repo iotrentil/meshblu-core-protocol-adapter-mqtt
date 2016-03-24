@@ -63,7 +63,7 @@ describe 'Whoami', ->
             metadata:
               responseId: request.metadata.responseId
               code: 200
-              status: 'No Content'
+              status: 'OK'
             rawData: '{"name":"foo"}'
 
           @jobManager.createResponse 'response', response, (error) =>
