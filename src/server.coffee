@@ -24,7 +24,7 @@ class Server
       namespace: namespace
       redisUri: redisUri
 
-    uuidAliasClient = _.bindAll new RedisNS 'uuid-alias', redis.createClient(redisUri)
+    uuidAliasClient = new RedisNS 'uuid-alias', redis.createClient(redisUri)
     uuidAliasResolver = new UuidAliasResolver
       cache: uuidAliasClient
       aliasServerUri: aliasServerUri
