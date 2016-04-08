@@ -62,12 +62,16 @@ class Server
 
     @server.on 'ready', => @onReady callback
     @server.on 'clientConnected', @onConnect
+    @server.on 'clientDisconnected', @onDisconnect
     @server.on 'published', @onPublished
 
   stop: (callback) =>
     @server.close callback
 
   onConnect: (client) =>
+
+  onDisconnect: (client) =>
+    client.handler.onClose()
 
   onPublished: (packet, client) =>
     return unless client?.handler?

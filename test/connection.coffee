@@ -3,7 +3,7 @@ async      = require 'async'
 JobManager = require 'meshblu-core-job-manager'
 mqtt       = require 'mqtt'
 portfinder = require 'portfinder'
-redis      = require 'redis'
+redis      = require 'ioredis'
 RedisNS    = require '@octoblu/redis-ns'
 Server     = require '../src/server'
 

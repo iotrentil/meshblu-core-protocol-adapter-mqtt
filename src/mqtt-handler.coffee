@@ -3,7 +3,6 @@ async = require 'async'
 
 class MQTTHandler
   constructor: ({@client, @jobManager, @messengerFactory, @server}) ->
-
     @JOB_MAP =
       'generateAndStoreToken': @handleGenerateAndStoreToken
       'getPublicKey':          @handleGetPublicKey
@@ -73,6 +72,9 @@ class MQTTHandler
     @_doJob 'GetDevice', 'whoami', (error, response) =>
       return @_emitError packet, error if error?
       return @_emitTopic packet, 'whoami', response
+
+  onClose: =>
+    @messenger?.close()
 
   onPublished: (packet) =>
     topic = packet.topic

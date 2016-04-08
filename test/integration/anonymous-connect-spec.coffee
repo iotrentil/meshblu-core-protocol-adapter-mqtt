@@ -1,6 +1,6 @@
 _          = require 'lodash'
 JobManager = require 'meshblu-core-job-manager'
-redis      = require 'redis'
+redis      = require 'ioredis'
 mqtt       = require 'mqtt'
 portfinder = require 'portfinder'
 RedisNS    = require '@octoblu/redis-ns'
