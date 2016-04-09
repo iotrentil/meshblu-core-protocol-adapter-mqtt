@@ -14,11 +14,11 @@ class Server
     {aliasServerUri} = options
 
     @jobManager = new RedisPooledJobManager
-      jobLogIndexPrefix: 'metric:meshblu-server-mqtt'
+      jobLogIndexPrefix: 'metric:meshblu-core-protocol-adapter-mqtt'
+      jobLogType: 'meshblu-core-protocol-adapter-mqtt:request'
       jobLogQueue: jobLogQueue
       jobLogRedisUri: jobLogRedisUri
       jobLogSampleRate: jobLogSampleRate
-      jobLogType: 'meshblu-server-mqtt:request'
       jobTimeoutSeconds: jobTimeoutSeconds
       maxConnections: connectionPoolMaxConnections
       namespace: namespace
