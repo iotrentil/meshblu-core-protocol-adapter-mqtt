@@ -20,9 +20,11 @@ class MQTTHandler
     @messenger.on 'config', (channel, message) =>
       @_emitEvent 'config', message
 
-    async.each ['received', 'config', 'data'], (type, next) =>
-      @messenger.subscribe {type, uuid: @client.auth.uuid}, next
-    , callback
+    @messenger.connect (error) =>
+      return callback error if error?
+      async.each ['received', 'config', 'data'], (type, next) =>
+        @messenger.subscribe {type, uuid: @client.auth.uuid}, next
+      , callback
 
   handleGenerateAndStoreToken: (packet) =>
     @_doJob 'CreateSessionToken', 'generateAndStoreToken', (error, response) =>
