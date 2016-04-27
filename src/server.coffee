@@ -6,6 +6,7 @@ RedisNS               = require '@octoblu/redis-ns'
 UuidAliasResolver     = require 'meshblu-uuid-alias-resolver'
 MQTTHandler           = require './mqtt-handler'
 MessengerFactory      = require './messenger-factory'
+debug                 = require('debug')('meshblu-core-protocol-adapter-mqtt:server')
 
 class Server
   constructor: (options) ->
@@ -51,11 +52,12 @@ class Server
         callback null, true
 
   authorizeSubscribe: (client, topic, callback) =>
+    debug "check topic #{topic} for #{client?.auth?.uuid}"
     return callback new Error('Client is unknown') unless client?
     return callback new Error('Client is unauthorized') unless client.auth?
-    return callback null, true if topic == client.auth.uuid
-
-    client.handler.subscribe topic, callback
+    result = topic.search(new RegExp "^#{client.auth.uuid}([\.\/]|$)") == 0
+    debug "topic authorization = #{result}"
+    return callback null, result
 
   start: (callback) =>
     @server = mosca.Server {@port}

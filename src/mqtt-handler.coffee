@@ -1,15 +1,11 @@
-_ = require 'lodash'
+debug = require('debug')('meshblu-core-protocol-adapter-mqtt:handler')
 async = require 'async'
+_     = require 'lodash'
 
 class MQTTHandler
   constructor: ({@client, @jobManager, @messengerFactory, @server}) ->
     @JOB_MAP =
-      'generateAndStoreToken': @handleGenerateAndStoreToken
-      'getPublicKey':          @handleGetPublicKey
-      'message':               @handleSendMessage
-      'resetToken':            @handleResetToken
-      'update':                @handleUpdate
-      'whoami':                @handleWhoami
+      'meshblu.request': @handleMeshbluRequest
 
   initialize: (callback) =>
     @messenger = @messengerFactory.build()
@@ -26,20 +22,38 @@ class MQTTHandler
         @messenger.subscribe {type, uuid: @client.auth.uuid}, next
       , callback
 
-  handleGenerateAndStoreToken: (packet) =>
-    @_doJob 'CreateSessionToken', 'generateAndStoreToken', (error, response) =>
-      return @_emitError packet, error if error?
-      return @_emitTopic packet, 'generateAndStoreToken', response
+  handleMeshbluRequest: (packet) =>
+    debug 'doing request...', packet
+    try
+      payload = JSON.parse packet.payload
+    catch error
+      payload = undefined
 
-  handleGetPublicKey: (packet) =>
-    @_doJob 'GetDevicePublicKey', 'getPublicKey', (error, response) =>
-      return @_emitError packet, error if error?
-      return @_emitTopic packet, 'getPublicKey', response
+    return unless payload?.job?
+    payload.job.metadata ?= {}
+    return unless _.isObject payload.job.metadata
+    payload.job.metadata.auth ?= @client.auth
 
-  handleResetToken: (packet) =>
-    @_doJob 'ResetToken', 'resetToken', (error, response) =>
-      return @_emitError packet, error if error?
-      return @_emitTopic packet, 'resetToken', response
+    debug job: payload.job
+    @jobManager.do 'request', 'response', payload.job, (error, response) =>
+      debug 'response received:', response
+      callbackInfo = packet.callbackInfo
+      data = response.rawData
+      if response.metadata.code >= 300
+        data = response.metadata.status
+        topic = 'error'
+      reply = {topic, data, callbackInfo}
+
+      # debug {reply}
+      packet =
+        topic: @client.id
+        payload: JSON.stringify reply
+          #_request: JSON.parse(originalPacket.payload.toString())
+      debug {packet}
+      @server.publish packet
+
+      #@connection.publish(replyTo, reply) if replyTo?
+
 
   handleSendMessage: (packet) =>
     request =
