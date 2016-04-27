@@ -11,6 +11,7 @@ class MQTTHandler
     @messenger = @messengerFactory.build()
 
     @messenger.on 'message', (channel, message) =>
+      debug {channel, message}
       @_emitEvent 'message', message
 
     @messenger.on 'config', (channel, message) =>
@@ -37,7 +38,8 @@ class MQTTHandler
     debug job: payload.job
     @jobManager.do 'request', 'response', payload.job, (error, response) =>
       debug 'response received:', response
-      callbackInfo = packet.callbackInfo
+      callbackInfo = payload.callbackInfo
+      debug {callbackInfo}
       data = response.rawData
       if response.metadata.code >= 300
         data = response.metadata.status
@@ -134,7 +136,7 @@ class MQTTHandler
 
   _emitEvent: (topic, payload) =>
     packet =
-      topic: @client.auth.uuid
+      topic: @client.id
       payload: JSON.stringify
         topic: topic
         data: payload

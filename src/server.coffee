@@ -36,6 +36,13 @@ class Server
     {address: '0.0.0.0', port: @port}
 
   authenticate: (client, username, password, callback) =>
+    debug {username, id: client.id}
+    clientPrefix = username
+    clientPrefix ?= 'guest'
+    validClientId = client.id.search(new RegExp "^#{clientPrefix}[\.\/]") == 0
+    return callback new Error('invalid client id') if !validClientId
+    return callback null, true if !username?
+
     auth =
       uuid:  username
       token: password?.toString()
@@ -52,11 +59,10 @@ class Server
         callback null, true
 
   authorizeSubscribe: (client, topic, callback) =>
-    debug "check topic #{topic} for #{client?.auth?.uuid}"
     return callback new Error('Client is unknown') unless client?
-    return callback new Error('Client is unauthorized') unless client.auth?
-    result = topic.search(new RegExp "^#{client.auth.uuid}([\.\/]|$)") == 0
-    debug "topic authorization = #{result}"
+    {uuid, token} = client.auth or {}
+    result = (topic == client.id) or (uuid? and topic == "#{uuid}.firehose")
+    debug "topic authorization for #{topic} = #{result}"
     return callback null, result
 
   start: (callback) =>
@@ -73,7 +79,7 @@ class Server
   onConnect: (client) =>
 
   onDisconnect: (client) =>
-    client.handler.onClose()
+    client?.handler?.onClose?()
 
   onPublished: (packet, client) =>
     return unless client?.handler?
