@@ -22,36 +22,23 @@ class MQTTHandler
       return callback new Error('meshblu not authenticated') unless response?.metadata?.code == 204
       return callback null, true
 
-  _buildMessenger: =>
-    messenger = @messengerFactory.build()
-    messenger.on 'message', (channel, message) =>
-      @_emitEvent 'message', message
-    messenger.on 'config', (channel, message) =>
-      @_emitEvent 'config', message
-
   handleMeshbluFirehoseRequest: (packet) =>
-    payload = @parsePayload(packet)
+    payload = @_parsePayload(packet)
     auth = payload?.auth or @client.auth
     @authenticateMeshblu auth, (error, success) =>
       return @_emitError(error, packet) if error? or !success
-      @messenger = @_buildMessenger()
+      @messenger = @_buildMessenger(payload.replyTopic)
       @messenger.connect (error) =>
         return @_emitError(error, packet) if error?
         async.each ['received', 'config'], (type, next) =>
           @messenger.subscribe {type, uuid: auth.uuid}, next
         , (error) =>
           return @_emitError(error, packet) if error?
-          return @_emitEvent 'meshblu.firehose.request', {firehose: true}, packet
-
-  _verifyMeshbluJob: (payload) =>
-    return false unless payload?
-    return false unless _.isObject payload?.job?.metadata
-    return false unless payload.job.metadata.jobType?
-    return true
+          return @_emitPayload 'meshblu.firehose.request', {firehose: true}, payload
 
   handleMeshbluRequest: (packet) =>
     debug 'doing meshblu request...', packet
-    payload = @parsePayload(packet)
+    payload = @_parsePayload(packet)
     return @_emitError(new Error('invalid job'), packet) unless @_verifyMeshbluJob payload
 
     payload.job.metadata.auth ?= @client.auth
@@ -72,27 +59,41 @@ class MQTTHandler
   onClose: =>
     @messenger?.close()
 
-  parsePayload: (packet) =>
+  _parsePayload: (packet) =>
     try
       return JSON.parse packet?.payload
     catch error
       return
 
+  _buildMessenger: (replyTopic) =>
+    messenger = @messengerFactory.build()
+    messenger.on 'message', (channel, message) =>
+      @_emitPayload 'message', message, {replyTopic}
+    messenger.on 'config', (channel, message) =>
+      @_emitPayload 'config', message, {replyTopic}
+
+  _verifyMeshbluJob: (payload) =>
+    return false unless payload?
+    return false unless _.isObject payload?.job?.metadata
+    return false unless payload.job.metadata.jobType?
+    return true
+
   _emitResponse: (response, payload) =>
     response ?= metadata:
       code: 500
       status: 'null response from job manager'
-    {topic:type, metadata, rawData:data} = response
+    {metadata, rawData:data} = response
     if metadata?.code >= 300
       type = 'error'
       data = metadata?.status
+    data = undefined if data == 'null'
     @_emitPayload type, data, payload
 
   _emitError: (error, packet) =>
-    @_emitEvent 'error', error?.message, packet
+    @_emitPacket 'error', error?.message, packet
 
-  _emitEvent: (type, data, packet) =>
-    payload = @parsePayload(packet) or {}
+  _emitPacket: (type, data, packet) =>
+    payload = @_parsePayload(packet) or {}
     @_emitPayload type, data, payload
 
   _emitPayload: (type, data, payload) =>
@@ -102,10 +103,8 @@ class MQTTHandler
 
   _clientPublish: (topic, payload) =>
     topic ?= "#{@client?.auth?.uuid or 'guest'}/#{@client?.id}"
-    payload.type ?= 'response'
-    payload.type = "meshblu.#{payload.type}"
-    payload = JSON.stringify payload
-    packet = {topic, payload}
+    payload.type = "meshblu.#{payload.type or 'response'}"
+    packet = {topic, payload: JSON.stringify(payload)}
     debug 'clientPublish:', packet
     @client.connection.publish packet
     #@client.forward '', payload, {}, '', 0
