@@ -31,128 +31,43 @@ class MQTTHandler
     try
       payload = JSON.parse packet.payload
     catch error
-      payload = undefined
+      return
 
     return unless payload?.job?
-    payload.job.metadata ?= {}
     return unless _.isObject payload.job.metadata
     payload.job.metadata.auth ?= @client.auth
-
     debug job: payload.job
+
     @jobManager.do 'request', 'response', payload.job, (error, response) =>
       debug 'response received:', response
-      callbackInfo = payload.callbackInfo
-      debug {callbackInfo}
-      data = response.rawData
-      if response.metadata.code >= 300
-        data = response.metadata.status
-        topic = 'error'
-      reply = {topic, data, callbackInfo}
-
-      # debug {reply}
-      packet =
-        topic: @client.id
-        payload: JSON.stringify reply
-          #_request: JSON.parse(originalPacket.payload.toString())
-      debug {packet}
-      @server.publish packet
-
-      #@connection.publish(replyTo, reply) if replyTo?
-
-
-  handleSendMessage: (packet) =>
-    request =
-      metadata:
-        jobType: 'SendMessage'
-        auth: @client.auth
-      rawData: packet.payload
-
-    @jobManager.do 'request', 'response', request, (error, response) =>
-      return @_emitError packet, error if error?
-
-  handleUpdate: (packet) =>
-    data = JSON.parse packet.payload
-    toUuid = data.uuid ? @client.auth.uuid
-    callbackId = data.callbackId
-
-    request =
-      metadata:
-        jobType: 'UpdateDevice'
-        auth: @client.auth
-        toUuid: toUuid
-      data: $set: _.omit(data, 'uuid', 'callbackId')
-
-    @jobManager.do 'request', 'response', request, (error, response) =>
-      return @_emitError packet, error if error?
-      return @_emitError packet, new Error('No Response') unless response?
-      unless response.metadata.code == 204
-        return @_emitError packet, new Error("update failed: #{response.metadata.status}")
-      return @_emitTopic packet, 'update', {}
-
-  handleWhoami: (packet) =>
-    @_doJob 'GetDevice', 'whoami', (error, response) =>
-      return @_emitError packet, error if error?
-      return @_emitTopic packet, 'whoami', response
-
-  onClose: =>
-    @messenger?.close()
+      @_emitResponse response, payload.callbackId
 
   onPublished: (packet) =>
     debug 'onPublished'
     topic = packet.topic
     fn = @JOB_MAP[topic]
-    return @_emitError packet, new Error("Topic '#{topic}' is not valid") unless _.isFunction fn
+    return @_emitEvent('error', "Topic '#{topic}' is not valid") unless _.isFunction fn
     fn(packet)
 
-  subscribe: (uuid, callback) =>
-    request =
-      metadata:
-        jobType: 'GetAuthorizedSubscriptionTypes'
-        auth: @client.auth
-        toUuid: uuid
-      data: ['config', 'data', 'received']
+  onClose: =>
+    @messenger?.close()
 
-    @jobManager.do 'request', 'response', request, (error, response) =>
-      return callback error if error?
-      return callback null, false unless response.metadata.code == 204
-      data = JSON.parse response.rawData
-      async.each data.types, (type, next) =>
-        @messenger.subscribe {type, uuid: uuid}, next
-      , (error) =>
-        return callback error if error?
-        callback null, true
+  _emitResponse: (response, callbackId) =>
+    response ?= metadata:
+      code: 500
+      status: 'null response from job manager'
+    {topic, metadata, rawData:data} = response
+    if metadata?.code >= 300
+      topic = 'error'
+      data = metadata?.status
+    @_clientPublish {topic, data, callbackId}
 
-  _doJob: (jobType, eventName, callback) =>
-    request =
-      metadata:
-        jobType: jobType
-        auth: @client.auth
-        toUuid: @client.auth.uuid
+  _emitEvent: (topic, data) =>
+    @_clientPublish {topic, data}
 
-    @jobManager.do 'request', 'response', request, (error, response) =>
-      return callback error if error?
-      return callback new Error('No Response') unless response?
-      return callback new Error("#{eventName} failed: #{response.metadata.status}") unless response.metadata.code == 200
-      return callback null, JSON.parse(response.rawData)
-
-  _emitError: (originalPacket, error) =>
-    @_emitTopic originalPacket, 'error', message: error.message
-
-  _emitEvent: (topic, payload) =>
-    packet =
-      topic: @client.id
-      payload: JSON.stringify
-        topic: topic
-        data: payload
-    @server.publish packet
-
-  _emitTopic: (originalPacket, topic, payload) =>
-    packet =
-      topic: @client.auth.uuid
-      payload: JSON.stringify
-        topic: topic
-        data: payload
-        _request: JSON.parse(originalPacket.payload.toString())
-    @server.publish packet
+  _clientPublish: (payload) =>
+    payload = JSON.stringify payload
+    @client.connection.publish {topic:'', payload}
+    #@client.forward '', payload, {}, '', 0
 
 module.exports = MQTTHandler

@@ -1,12 +1,12 @@
-_                     = require 'lodash'
-mosca                 = require 'mosca'
-RedisPooledJobManager = require 'meshblu-core-redis-pooled-job-manager'
-redis                 = require 'ioredis'
-RedisNS               = require '@octoblu/redis-ns'
-UuidAliasResolver     = require 'meshblu-uuid-alias-resolver'
-MQTTHandler           = require './mqtt-handler'
-MessengerFactory      = require './messenger-factory'
 debug                 = require('debug')('meshblu-core-protocol-adapter-mqtt:server')
+RedisPooledJobManager = require 'meshblu-core-redis-pooled-job-manager'
+UuidAliasResolver     = require 'meshblu-uuid-alias-resolver'
+MessengerFactory      = require './messenger-factory'
+MQTTHandler           = require './mqtt-handler'
+RedisNS               = require '@octoblu/redis-ns'
+redis                 = require 'ioredis'
+mosca                 = require 'mosca'
+_                     = require 'lodash'
 
 class Server
   constructor: (options) ->
@@ -36,11 +36,7 @@ class Server
     {address: '0.0.0.0', port: @port}
 
   authenticate: (client, username, password, callback) =>
-    debug {username, id: client.id}
-    clientPrefix = username
-    clientPrefix ?= 'guest'
-    validClientId = client.id.search(new RegExp "^#{clientPrefix}[\.\/]") == 0
-    return callback new Error('invalid client id') if !validClientId
+    debug {username}
     return @initializeClient(client, callback) unless username?
 
     auth =
@@ -63,14 +59,18 @@ class Server
 
   authorizeSubscribe: (client, topic, callback) =>
     debug 'authorizeSubscribe:', {topic}
-    return callback new Error('Client is unknown') unless client?
-    {uuid, token} = client.auth or {}
-    result = (topic == client.id) or (uuid? and topic == "#{uuid}.firehose")
-    debug "topic authorization for #{topic} = #{result}"
-    return callback null, result
+    return callback null, false
+
+  authorizePublish: (client, topic, payload, callback) =>
+    authorize = topic? and topic.startsWith('meshblu.')
+    debug 'authorizePublish:', "#{topic}": authorize
+    return callback null, authorize
 
   start: (callback) =>
-    @server = mosca.Server {@port}
+    options = {
+      interfaces: [{type:'mqtt'}, {type:'http'}]
+    }
+    @server = mosca.Server options # {@port}
 
     @server.on 'ready', => @onReady callback
     @server.on 'clientConnected', @onConnect
@@ -93,6 +93,7 @@ class Server
   onReady: (callback) =>
     @server.authenticate = @authenticate
     @server.authorizeSubscribe = @authorizeSubscribe
+    @server.authorizePublish = @authorizePublish
     callback()
 
 module.exports = Server
