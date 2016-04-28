@@ -37,29 +37,13 @@ class Server
 
   authenticate: (client, username, password, callback) =>
     debug {username}
-    return @initializeClient(client, callback) unless username?
-
-    auth =
-      uuid:  username
-      token: password?.toString()
-
-    request = {metadata: {jobType: 'Authenticate', auth: auth}}
-
-    @jobManager.do 'request', 'response', request, (error, response) =>
-      return callback error if error?
-      return callback new Error('unauthorized') unless response.metadata.code == 204
-      client.auth = auth
-      @initializeClient client, callback
-
-  initializeClient: (client, callback) =>
     client.handler = new MQTTHandler {client, @jobManager, @messengerFactory, @server}
-    client.handler.initialize (error) =>
-      return callback error if error?
-      callback null, true
+    client.handler.authenticateClient username, password?.toString(), callback
 
   authorizeSubscribe: (client, topic, callback) =>
-    debug 'authorizeSubscribe:', {topic}
-    return callback null, false
+    authorize = false
+    debug 'authorizeSubscribe:', "#{topic}": authorize
+    return callback null, authorize
 
   authorizePublish: (client, topic, payload, callback) =>
     authorize = topic? and topic.startsWith('meshblu.')
