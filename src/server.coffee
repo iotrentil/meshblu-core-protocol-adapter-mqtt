@@ -41,7 +41,7 @@ class Server
     clientPrefix ?= 'guest'
     validClientId = client.id.search(new RegExp "^#{clientPrefix}[\.\/]") == 0
     return callback new Error('invalid client id') if !validClientId
-    return callback null, true if !username?
+    return @initializeClient(client, callback) unless username?
 
     auth =
       uuid:  username
@@ -53,12 +53,16 @@ class Server
       return callback error if error?
       return callback new Error('unauthorized') unless response.metadata.code == 204
       client.auth = auth
-      client.handler = new MQTTHandler {client, @jobManager, @messengerFactory, @server}
-      client.handler.initialize (error) =>
-        return callback error if error?
-        callback null, true
+      @initializeClient client, callback
+
+  initializeClient: (client, callback) =>
+    client.handler = new MQTTHandler {client, @jobManager, @messengerFactory, @server}
+    client.handler.initialize (error) =>
+      return callback error if error?
+      callback null, true
 
   authorizeSubscribe: (client, topic, callback) =>
+    debug 'authorizeSubscribe:', {topic}
     return callback new Error('Client is unknown') unless client?
     {uuid, token} = client.auth or {}
     result = (topic == client.id) or (uuid? and topic == "#{uuid}.firehose")
@@ -82,6 +86,7 @@ class Server
     client?.handler?.onClose?()
 
   onPublished: (packet, client) =>
+    debug 'server.onPublished', {packet}
     return unless client?.handler?
     client.handler.onPublished packet
 

@@ -8,6 +8,8 @@ class MQTTHandler
       'meshblu.request': @handleMeshbluRequest
 
   initialize: (callback) =>
+    return callback() unless @client?.auth?.uuid?
+
     @messenger = @messengerFactory.build()
 
     @messenger.on 'message', (channel, message) =>
@@ -19,6 +21,7 @@ class MQTTHandler
 
     @messenger.connect (error) =>
       return callback error if error?
+
       async.each ['received', 'config', 'data'], (type, next) =>
         @messenger.subscribe {type, uuid: @client.auth.uuid}, next
       , callback
@@ -95,6 +98,7 @@ class MQTTHandler
     @messenger?.close()
 
   onPublished: (packet) =>
+    debug 'onPublished'
     topic = packet.topic
     fn = @JOB_MAP[topic]
     return @_emitError packet, new Error("Topic '#{topic}' is not valid") unless _.isFunction fn
