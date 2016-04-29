@@ -39,7 +39,7 @@ class MQTTHandler
   handleMeshbluRequest: (packet) =>
     debug 'doing meshblu request...', packet
     payload = @_parsePayload(packet)
-    return @_emitError(new Error('invalid job'), packet) unless @_verifyMeshbluJob payload
+    return @_emitError(new Error('undefined job type'), packet) unless payload?.job?.metadata?.jobType?
 
     payload.job.metadata.auth ?= @client.auth
     debug 'request job:', payload.job
@@ -71,12 +71,6 @@ class MQTTHandler
       @_emitPayload 'message', message, {replyTopic}
     messenger.on 'config', (channel, message) =>
       @_emitPayload 'config', message, {replyTopic}
-
-  _verifyMeshbluJob: (payload) =>
-    return false unless payload?
-    return false unless _.isObject payload?.job?.metadata
-    return false unless payload.job.metadata.jobType?
-    return true
 
   _emitResponse: (response, payload) =>
     response ?= metadata:
