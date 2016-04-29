@@ -22,7 +22,7 @@ describe 'Subscribing to messages', ->
       expect(@request.metadata.responseId).to.exist
       delete @request.metadata.responseId # We don't know what its gonna be
 
-      expect(@request).to.deep.equal
+      expect(@request).to.containSubset
         metadata:
           auth: {uuid: 'u', token: 'p'}
           toUuid: 'u2'
