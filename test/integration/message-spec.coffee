@@ -22,7 +22,7 @@ describe 'Message', ->
         expect(request.metadata.responseId).to.exist
         delete request.metadata.responseId # We don't know what its gonna be
 
-        expect(request).to.deep.equal
+        expect(request).to.containSubset
           metadata:
             jobType: 'SendMessage'
             auth: {uuid: 'u', token: 'p'}
