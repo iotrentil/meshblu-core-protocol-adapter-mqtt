@@ -10,7 +10,7 @@ _                     = require 'lodash'
 
 class Server
   constructor: (options) ->
-    {@port, redisUri, namespace, jobTimeoutSeconds, connectionPoolMaxConnections} = options
+    {@moscaOptions, redisUri, namespace, jobTimeoutSeconds, connectionPoolMaxConnections} = options
     {jobLogQueue, jobLogRedisUri, jobLogSampleRate} = options
     {aliasServerUri} = options
 
@@ -32,9 +32,6 @@ class Server
 
     @messengerFactory = new MessengerFactory {uuidAliasResolver, redisUri, namespace}
 
-  address: =>
-    {address: '0.0.0.0', port: @port}
-
   authenticate: (client, username, password, callback) =>
     debug {username}
     client.handler = new MQTTHandler {client, @jobManager, @messengerFactory, @server}
@@ -51,10 +48,7 @@ class Server
     return callback null, authorize
 
   start: (callback) =>
-    options = {
-      interfaces: [{type:'mqtt'}, {type:'http'}]
-    }
-    @server = mosca.Server options # {@port}
+    @server = mosca.Server @moscaOptions
 
     @server.on 'ready', => @onReady callback
     @server.on 'clientConnected', @onConnect

@@ -34,7 +34,7 @@ class MQTTHandler
           @messenger.subscribe {type, uuid: auth.uuid}, next
         , (error) =>
           return @_emitError(error, packet) if error?
-          return @_emitPayload 'meshblu.firehose.request', {firehose: true}, payload
+          return @_emitPayload 'firehose.request', {firehose: true}, payload
 
   handleMeshbluRequest: (packet) =>
     debug 'doing meshblu request...', packet
@@ -101,6 +101,5 @@ class MQTTHandler
     packet = {topic, payload: JSON.stringify(payload)}
     debug 'clientPublish:', packet
     @client.connection.publish packet
-    #@client.forward '', payload, {}, '', 0
 
 module.exports = MQTTHandler

@@ -1,15 +1,18 @@
+debug        = require('debug')('meshblu-core-protocol-adapter-mqtt:command')
 commander    = require 'commander'
 colors       = require 'colors'
+fs           = require 'fs'
 PACKAGE_JSON = require './package.json'
 Server       = require './src/server'
 
 class Command
   constructor: ({@argv}) ->
+    @defaultMoscaOptions = JSON.stringify interfaces:[type:"mqtt"]
 
   getOptions: =>
     commander
       .version PACKAGE_JSON.version
-      .option '-p, --port <1883>', 'Port to listen on (MESHBLU_SERVER_MQTT_PORT)'
+      .option "--moscaOptions <#{@defaultMoscaOptions}>", 'Options for Mosca (MESHBLU_SERVER_MOSCA_OPTIONS)'
       .parse @argv
 
     throw new Error('env JOB_LOG_QUEUE not set') unless process.env.JOB_LOG_QUEUE
@@ -20,8 +23,12 @@ class Command
     throw new Error('env NAMESPACE not set') unless process.env.NAMESPACE
     throw new Error('env REDIS_URI not set') unless process.env.REDIS_URI
 
+    commander.moscaOptions = commander.moscaOptions || process.env.MESHBLU_SERVER_MOSCA_OPTIONS || @defaultMoscaOptions
+    if commander.moscaOptions == '-'
+      commander.moscaOptions = fs.readFileSync process.stdin.fd, 'utf8'
+
     return {
-      port: parseInt(commander.port || process.env.MESHBLU_SERVER_MQTT_PORT || 1883)
+      moscaOptions: JSON.parse commander.moscaOptions
       jobLogQueue: process.env.JOB_LOG_QUEUE
       jobLogRedisUri: process.env.JOB_LOG_REDIS_URI
       jobLogSampleRate: parseFloat process.env.JOB_LOG_SAMPLE_RATE
@@ -37,15 +44,14 @@ class Command
     process.exit 1
 
   run: =>
-    @server = new Server @getOptions()
+    options = @getOptions()
+    @server = new Server options
     @server.start (error) =>
       @panic error if error?
-
-      {address, port} = @server.address()
-      console.log "Server running on #{address}:#{port}"
+      console.log "Server running!"
+      debug JSON.stringify(options, null, 2)
 
     process.on 'SIGTERM', @stop
-
 
   stop: =>
     console.log 'SIGTERM caught, exiting'
