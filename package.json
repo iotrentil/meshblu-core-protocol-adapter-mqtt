@@ -41,6 +41,7 @@
     "colors": "^1.1.2",
     "commander": "^2.9.0",
     "debug": "^2.2.0",
+    "fs-extra": "^0.30.0",
     "ioredis": "^1.15.1",
     "lodash": "^4.6.1",
     "meshblu-core-job-manager": "^3.5.1",

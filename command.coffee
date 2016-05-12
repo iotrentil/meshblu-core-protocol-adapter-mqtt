@@ -24,8 +24,8 @@ class Command
     throw new Error('env REDIS_URI not set') unless process.env.REDIS_URI
 
     commander.moscaOptions = commander.moscaOptions || process.env.MESHBLU_SERVER_MOSCA_OPTIONS || @defaultMoscaOptions
-    if commander.moscaOptions == '-'
-      commander.moscaOptions = fs.readFileSync process.stdin.fd, 'utf8'
+    if commander?.moscaOptions?
+      commander.moscaOptions = fs.readFileSync commander.moscaOptions, 'utf8'
 
     return {
       moscaOptions: JSON.parse commander.moscaOptions

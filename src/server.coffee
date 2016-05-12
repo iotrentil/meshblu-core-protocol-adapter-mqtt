@@ -43,7 +43,7 @@ class Server
     return callback null, authorize
 
   authorizePublish: (client, topic, payload, callback) =>
-    authorize = topic? and topic.startsWith('meshblu.')
+    authorize = topic? and _.startsWith(topic,'meshblu/')
     debug 'authorizePublish:', "#{topic}": authorize
     return callback null, authorize
 

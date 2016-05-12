@@ -1,11 +1,15 @@
 {
   "interfaces": [
+    { "type": "mqtt" },
     { "type": "mqtts" },
+    { "type": "http" },
     { "type": "https" }
   ],
   "credentials": {
     "keyPath": "../octoblu-dev/services-aux/rabbitmq/certs/server/key.pem",
     "certPath": "../octoblu-dev/services-aux/rabbitmq/certs/server/cert.pem",
-    "secureProtocol": "TLSv1_method"
+    "secureProtocol": "TLSv1_method",
+    "ciphers": "RC4:HIGH:MD5:aNULL:EDH",
+    "honorCipherOrder": true
   }
 }

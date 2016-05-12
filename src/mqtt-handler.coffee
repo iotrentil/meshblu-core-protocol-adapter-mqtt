@@ -5,9 +5,8 @@ _     = require 'lodash'
 class MQTTHandler
   constructor: ({@client, @jobManager, @messengerFactory, @server}) ->
     @JOB_MAP =
-      'meshblu.request'          : @handleMeshbluRequest
-      'meshblu.authenticate'     : @handleMeshbluAuthenticateClient
-      'meshblu.firehose.request' : @handleMeshbluFirehoseRequest
+      'meshblu/request'  : @handleMeshbluRequest
+      'meshblu/firehose' : @handleMeshbluFirehose
 
   authenticateClient: (uuid, token, callback) =>
     auth = {uuid, token}
@@ -22,23 +21,31 @@ class MQTTHandler
       return callback new Error('meshblu not authenticated') unless response?.metadata?.code == 204
       return callback null, true
 
-  handleMeshbluFirehoseRequest: (packet) =>
+  handleMeshbluFirehose: (packet) =>
     payload = @_parsePayload(packet)
     auth = payload?.auth or @client.auth
     @authenticateMeshblu auth, (error, success) =>
       return @_emitError(error, packet) if error? or !success
-      @messenger = @_buildMessenger(payload.replyTopic)
-      @messenger.connect (error) =>
+      @messenger?.close()
+      if payload?.connect
+        return @_connectFirehose auth, payload, packet
+      else
+        return @_emitPayload 'firehose', {connected: false}, payload
+
+  _connectFirehose: (auth, payload, packet) =>
+    @messenger = @_buildMessenger(payload.replyTopic)
+    @messenger.connect (error) =>
+      return @_emitError(error, packet) if error?
+      async.each ['received', 'config'], (type, next) =>
+        @messenger.subscribe {type, uuid: auth.uuid}, next
+      , (error) =>
         return @_emitError(error, packet) if error?
-        async.each ['received', 'config'], (type, next) =>
-          @messenger.subscribe {type, uuid: auth.uuid}, next
-        , (error) =>
-          return @_emitError(error, packet) if error?
-          return @_emitPayload 'firehose.request', {firehose: true}, payload
+        return @_emitPayload 'firehose', {connected: true}, payload
 
   handleMeshbluRequest: (packet) =>
     debug 'doing meshblu request...', packet
     payload = @_parsePayload(packet)
+    debug 'with packet', payload
     return @_emitError(new Error('undefined job type'), packet) unless payload?.job?.metadata?.jobType?
 
     payload.job.metadata.auth ?= @client.auth
@@ -46,8 +53,6 @@ class MQTTHandler
     @jobManager.do 'request', 'response', payload.job, (error, response) =>
       debug 'response received:', response
       @_emitResponse response, payload
-
-  handleMeshbluAuthenticateClient: (packet) =>
 
   onPublished: (packet) =>
     debug 'onPublished'
@@ -96,8 +101,8 @@ class MQTTHandler
     @_clientPublish topic, payload
 
   _clientPublish: (topic, payload) =>
-    topic ?= "#{@client?.auth?.uuid or 'guest'}/#{@client?.id}"
-    payload.type = "meshblu.#{payload.type or 'response'}"
+    topic ?= "meshbluClient/#{@client?.auth?.uuid or 'guest'}/#{@client?.id}"
+    payload.type = "meshblu/#{payload.type or 'response'}"
     packet = {topic, payload: JSON.stringify(payload)}
     debug 'clientPublish:', packet
     @client.connection.publish packet
