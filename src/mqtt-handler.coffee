@@ -73,9 +73,9 @@ class MQTTHandler
   _buildMessenger: (replyTopic) =>
     messenger = @messengerFactory.build()
     messenger.on 'message', (channel, message) =>
-      @_emitPayload 'message', message, {replyTopic}
+      @_emitPayload 'message', message, {replyTopic, callbackId:true}
     messenger.on 'config', (channel, message) =>
-      @_emitPayload 'config', message, {replyTopic}
+      @_emitPayload 'config', message, {replyTopic, callbackId:true}
 
   _emitResponse: (response, payload) =>
     response ?= metadata:
@@ -98,7 +98,8 @@ class MQTTHandler
   _emitPayload: (type, data, payload) =>
     {replyTopic:topic, callbackId} = payload
     payload = {type, data, callbackId}
-    @_clientPublish topic, payload
+    debug 'emitPayload', {payload}
+    @_clientPublish topic, payload if callbackId?
 
   _clientPublish: (topic, payload) =>
     topic ?= "meshbluClient/#{@client?.auth?.uuid or 'guest'}/#{@client?.id}"
