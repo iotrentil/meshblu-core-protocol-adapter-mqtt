@@ -1,10 +1,15 @@
 {
+  "publishNewClient": false,
+  "publishClientDisconnect": false,
+  "publishSubscriptions": false,
+
   "interfaces": [
     { "type": "mqtt" },
     { "type": "mqtts" },
     { "type": "http" },
     { "type": "https" }
   ],
+
   "credentials": {
     "keyPath": "../octoblu-dev/services-aux/rabbitmq/certs/server/key.pem",
     "certPath": "../octoblu-dev/services-aux/rabbitmq/certs/server/cert.pem",
