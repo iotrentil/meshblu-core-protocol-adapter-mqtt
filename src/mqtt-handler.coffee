@@ -7,6 +7,7 @@ class MQTTHandler
     @JOB_MAP =
       'meshblu/request'  : @handleMeshbluRequest
       'meshblu/firehose' : @handleMeshbluFirehose
+    @messengers = {}
 
   authenticateClient: (uuid, token, callback) =>
     auth = {uuid, token}
@@ -26,18 +27,20 @@ class MQTTHandler
     auth = payload?.auth or @client.auth
     @authenticateMeshblu auth, (error, success) =>
       return @_emitError(error, packet) if error? or !success
-      @messenger?.close()
+      @messengers[auth.uuid]?.close()
       if payload?.connect
         return @_connectFirehose auth, payload, packet
       else
         return @_emitPayload 'firehose', {connected: false}, payload
 
   _connectFirehose: (auth, payload, packet) =>
-    @messenger = @_buildMessenger(payload.replyTopic)
-    @messenger.connect (error) =>
+    {uuid} = auth
+    return unless uuid?
+    @messengers[uuid] = @_buildMessenger(payload.replyTopic)
+    @messengers[uuid].connect (error) =>
       return @_emitError(error, packet) if error?
       async.each ['received', 'config'], (type, next) =>
-        @messenger.subscribe {type, uuid: auth.uuid}, next
+        @messengers[uuid].subscribe {type, uuid: auth.uuid}, next
       , (error) =>
         return @_emitError(error, packet) if error?
         return @_emitPayload 'firehose', {connected: true}, payload
@@ -62,7 +65,9 @@ class MQTTHandler
     fn(packet)
 
   onClose: =>
-    @messenger?.close()
+    console.log 'onClose'
+    _.forEach @messengers, (messenger) =>
+      messenger?.close()
 
   _parsePayload: (packet) =>
     try
@@ -73,9 +78,10 @@ class MQTTHandler
   _buildMessenger: (replyTopic) =>
     messenger = @messengerFactory.build()
     messenger.on 'message', (channel, message) =>
-      @_emitPayload 'message', message, {replyTopic, callbackId:true}
+      @_emitPayload 'message', message, {replyTopic, callbackId:false}
     messenger.on 'config', (channel, message) =>
-      @_emitPayload 'config', message, {replyTopic, callbackId:true}
+      @_emitPayload 'config', message, {replyTopic, callbackId:false}
+    return messenger
 
   _emitResponse: (response, payload) =>
     response ?= metadata:

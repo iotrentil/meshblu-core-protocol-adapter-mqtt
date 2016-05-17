@@ -12,11 +12,10 @@ describe 'Connecting to the server with auth', ->
       client: new RedisNS 'ns', redis.createClient()
       timeoutSeconds: 1
 
-    portfinder.getPort (error, port) =>
+    portfinder.getPort (error, @port) =>
       return done error if error?
 
       @sut = new Server
-        port: port
         redisUri: 'redis://localhost:6379'
         namespace: 'ns'
         jobLogQueue: 'foo'
@@ -24,6 +23,8 @@ describe 'Connecting to the server with auth', ->
         jobLogSampleRate: 0
         jobTimeoutSeconds: 1
         connectionPoolMaxConnections: 1
+        moscaOptions:
+          port: @port
 
       @sut.start done
 
@@ -32,8 +33,7 @@ describe 'Connecting to the server with auth', ->
 
   describe 'when an mqtt client connects with a username/password', ->
     beforeEach ->
-      {port} = @sut.address()
-      @client  = mqtt.connect("mqtt://u:p@localhost:#{port}")
+      @client  = mqtt.connect("mqtt://u:p@localhost:#{@port}")
 
     afterEach (done) ->
       @client.end true, done
@@ -74,10 +74,11 @@ describe 'Connecting to the server with auth', ->
       describe 'when the client subscribes to itself', ->
         beforeEach (done) ->
           @client.subscribe 'u', (error, @granted) =>
+            delete @granted[0].qos
             return done error
 
         it 'should get here', ->
-          expect(@granted).to.deep.equal [{topic: 'u', qos: 0}]
+          expect(@granted).to.deep.equal [{topic: 'u'}]
 
     describe 'when the job responds with a status 401', ->
       beforeEach (done) ->

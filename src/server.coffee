@@ -48,8 +48,8 @@ class Server
     return callback null, authorize
 
   start: (callback) =>
+    debug 'starting with options', @moscaOptions
     @server = mosca.Server @moscaOptions
-
     @server.on 'ready', => @onReady callback
     @server.on 'clientConnected', @onConnect
     @server.on 'clientDisconnected', @onDisconnect

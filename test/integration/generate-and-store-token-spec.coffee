@@ -12,8 +12,15 @@ describe 'Generate and Store Token', ->
 
   describe 'when generateAndStoreToken is called', ->
     beforeEach (done) ->
-      message = JSON.stringify callbackId: 'callback-eye-D'
-      @client.publish 'generateAndStoreToken', message, done
+      message = JSON.stringify
+        callbackId: 'callback-eye-D'
+        job:
+          rawData: 'null'
+          metadata:
+            jobType: 'CreateSessionToken'
+            toUuid: 'u'
+
+      @client.publish 'meshblu/request', message, done
 
     it 'should create a generateAndStoreToken job', (done) ->
       @jobManager.getRequest ['request'], (error, request) =>
@@ -33,7 +40,7 @@ describe 'Generate and Store Token', ->
 
     describe 'when the generateAndStoreToken fails', ->
       beforeEach (done) ->
-        @client.on 'error', (@error) => done()
+        @client.on 'message/parsed', (@result) => done()
 
         @jobManager.getRequest ['request'], (error, request) =>
           return done error if error?
@@ -49,11 +56,15 @@ describe 'Generate and Store Token', ->
             return done error if error?
 
       it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'generateAndStoreToken failed: Forbidden'
+        expect(@result).to.deep.equal {
+          type: 'meshblu/error',
+          data: 'Forbidden',
+          callbackId: 'callback-eye-D'
+        }
 
     describe 'when the generateAndStoreToken succeeds', ->
       beforeEach (done) ->
-        @client.on 'message', (@fakeTopic, @buffer) => done()
+        @client.on 'message/parsed', (@result) => done()
 
         @jobManager.getRequest ['request'], (error, request) =>
           return done error if error?
@@ -70,21 +81,20 @@ describe 'Generate and Store Token', ->
             return done error if error?
 
       it 'should send a success message to the client', ->
-        message = JSON.parse @buffer.toString()
-        expect(message).to.containSubset
-          topic: 'generateAndStoreToken'
-          data:
-            uuid: 'u'
-            token: 't'
-          _request:
-            callbackId: 'callback-eye-D'
+        expect(@result).to.containSubset
+          type: 'meshblu/response'
+          data: JSON.stringify {uuid: 'u', token: 't'}
+          callbackId: 'callback-eye-D'
 
     describe 'when the generateAndStoreToken times out', ->
       beforeEach (done) ->
+        @client.on 'message/parsed', (@result) => done()
+
+      # beforeEach (done) ->
         @timeout 3000
         @client.on 'error', (@error) => done()
         @jobManager.getRequest ['request'], (error, request) =>
           return done error if error?
 
       it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'Response timeout exceeded'
+        expect(@result.data).to.equal 'null response from job manager'

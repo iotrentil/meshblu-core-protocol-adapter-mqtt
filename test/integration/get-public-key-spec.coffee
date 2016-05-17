@@ -12,8 +12,14 @@ describe 'Get Public Key', ->
 
   describe 'when getPublicKey is called', ->
     beforeEach (done) ->
-      message = JSON.stringify callbackId: 'callback-eye-D'
-      @client.publish 'getPublicKey', message, done
+      message = JSON.stringify
+        callbackId: 'callback-eye-D'
+        job:
+          rawData: 'null'
+          metadata:
+            jobType: 'GetDevicePublicKey'
+            toUuid: 'u'
+      @client.publish 'meshblu/request', message, done
 
     it 'should create a getPublicKey job', (done) ->
       @jobManager.getRequest ['request'], (error, request) =>
@@ -33,7 +39,12 @@ describe 'Get Public Key', ->
 
     describe 'when the getPublicKey fails', ->
       beforeEach (done) ->
-        @client.on 'error', (@error) => done()
+        @client.on 'message', (@fakeTopic, buffer) =>
+          try
+            @result = JSON.parse buffer.toString()
+          catch error
+            done(error)
+          done()
 
         @jobManager.getRequest ['request'], (error, request) =>
           return done error if error?
@@ -49,7 +60,7 @@ describe 'Get Public Key', ->
             return done error if error?
 
       it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'getPublicKey failed: Forbidden'
+        expect(@result.data).to.equals 'Forbidden'
 
     describe 'when the getPublicKey succeeds', ->
       beforeEach (done) ->

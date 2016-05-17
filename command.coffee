@@ -23,9 +23,10 @@ class Command
     throw new Error('env NAMESPACE not set') unless process.env.NAMESPACE
     throw new Error('env REDIS_URI not set') unless process.env.REDIS_URI
 
-    commander.moscaOptions = commander.moscaOptions || process.env.MESHBLU_SERVER_MOSCA_OPTIONS || @defaultMoscaOptions
+    commander.moscaOptions = commander.moscaOptions || process.env.MESHBLU_SERVER_MOSCA_OPTIONS
     if commander?.moscaOptions?
       commander.moscaOptions = fs.readFileSync commander.moscaOptions, 'utf8'
+    commander.moscaOptions ?= @defaultMoscaOptions
 
     return {
       moscaOptions: JSON.parse commander.moscaOptions

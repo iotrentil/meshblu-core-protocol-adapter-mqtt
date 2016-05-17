@@ -1,3 +1,4 @@
+debug      = require('debug')('meshblu-core-protocol-adapter-mqtt:anonymous-connect-spec')
 _          = require 'lodash'
 JobManager = require 'meshblu-core-job-manager'
 redis      = require 'ioredis'
@@ -12,10 +13,9 @@ describe 'Connecting to the server anonymously', ->
       client: new RedisNS 'ns', redis.createClient()
       timeoutSeconds: 1
 
-    portfinder.getPort (error, port) =>
+    portfinder.getPort (error, @port) =>
       return done error if error?
       @sut = new Server
-        port: port
         redisUri: 'redis://localhost:6379'
         namespace: 'ns'
         jobLogQueue: 'foo'
@@ -23,6 +23,8 @@ describe 'Connecting to the server anonymously', ->
         jobLogSampleRate: 0
         jobTimeoutSeconds: 1
         connectionPoolMaxConnections: 1
+        moscaOptions:
+          port: @port
 
       @sut.start done
 
@@ -31,8 +33,9 @@ describe 'Connecting to the server anonymously', ->
 
   describe 'when a generic, anonymous mqtt client connects', ->
     beforeEach ->
-      {port} = @sut.address()
-      @client  = mqtt.connect("mqtt://localhost:#{port}")
+      # {port} = @sut.address()
+      debug "connecting to #{@port}"
+      @client  = mqtt.connect("mqtt://localhost:#{@port}",{username:'mega',password:'awesome'})
 
     afterEach (done) ->
       @client.end true, done

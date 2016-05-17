@@ -24,17 +24,17 @@ class Connection
   _createClient: (callback) =>
     callback = _.once callback
 
-    {port} = @server.address()
-    @client = mqtt.connect("mqtt://u:p@localhost:#{port}")
+    @client = mqtt.connect("mqtt://u:p@localhost:#{@port}")
     @client.on 'connect', =>
-      @client.subscribe 'u', (error, granted) =>
-        throw error if error?
-        throw new Error('Failed to subscribe') unless _.isEqual granted, [{topic: 'u', qos: 0}]
-        callback null, @client
+      # @client.subscribe 'u', (error, granted) =>
+      throw error if error?
+        # throw new Error('Failed to subscribe') unless _.isEqual granted, [{topic: 'u', qos: 0}]
+      callback null, @client
 
     @client.on 'message', (fakeTopic, buffer) =>
       message = JSON.parse buffer.toString()
       @client.emit 'error', new Error(message.data.message) if message.topic == 'error'
+      @client.emit 'message/parsed', message
 
     @_respondToLoginAttempt (error) =>
       return callback error if error?
@@ -49,10 +49,9 @@ class Connection
     return callback null, @redisClient
 
   _createServer: (callback) =>
-    portfinder.getPort (error, port) =>
+    portfinder.getPort (error, @port) =>
       return callback error if error?
       @server = new Server
-        port: port
         redisUri: 'redis://localhost:6379'
         namespace: 'ns'
         jobLogQueue: 'foo'
@@ -60,6 +59,8 @@ class Connection
         jobLogSampleRate: 0
         jobTimeoutSeconds: 1
         connectionPoolMaxConnections: 1
+        moscaOptions:
+          port: @port
 
       @server.start (error) =>
         return callback error if error?
