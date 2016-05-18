@@ -1,7 +1,7 @@
 debug                 = require('debug')('meshblu-core-protocol-adapter-mqtt:server')
 RedisPooledJobManager = require 'meshblu-core-redis-pooled-job-manager'
+MultiHydrantFactory   = require 'meshblu-core-manager-hydrant/multi'
 UuidAliasResolver     = require 'meshblu-uuid-alias-resolver'
-MessengerFactory      = require './messenger-factory'
 MQTTHandler           = require './mqtt-handler'
 RedisNS               = require '@octoblu/redis-ns'
 redis                 = require 'ioredis'
@@ -10,7 +10,7 @@ _                     = require 'lodash'
 
 class Server
   constructor: (options) ->
-    {@moscaOptions, redisUri, namespace, jobTimeoutSeconds, connectionPoolMaxConnections} = options
+    {@moscaOptions, @redisUri, namespace, jobTimeoutSeconds, connectionPoolMaxConnections} = options
     {jobLogQueue, jobLogRedisUri, jobLogSampleRate} = options
     {aliasServerUri} = options
 
@@ -23,19 +23,21 @@ class Server
       jobTimeoutSeconds: jobTimeoutSeconds
       maxConnections: connectionPoolMaxConnections
       namespace: namespace
-      redisUri: redisUri
+      redisUri: @redisUri
 
-    uuidAliasClient = new RedisNS 'uuid-alias', redis.createClient(redisUri)
-    uuidAliasResolver = new UuidAliasResolver
+    uuidAliasClient = new RedisNS 'uuid-alias', redis.createClient(@redisUri)
+    @uuidAliasResolver = new UuidAliasResolver
       cache: uuidAliasClient
       aliasServerUri: aliasServerUri
 
-    @messengerFactory = new MessengerFactory {uuidAliasResolver, redisUri, namespace}
-
   authenticate: (client, username, password, callback) =>
     debug {username}
-    client.handler = new MQTTHandler {client, @jobManager, @messengerFactory, @server}
-    client.handler.authenticateClient username, password?.toString(), callback
+    hydrantClient = new RedisNS 'messages', redis.createClient(@redisUri)
+    hydrant = new MultiHydrantFactory {client: hydrantClient, @uuidAliasResolver}
+    hydrant.connect (error) =>
+      return callback error if error?
+      client.handler = new MQTTHandler {client, @jobManager, hydrant, @server}
+      client.handler.authenticateClient username, password?.toString(), callback
 
   authorizeSubscribe: (client, topic, callback) =>
     authorize = false

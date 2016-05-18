@@ -1,14 +1,14 @@
-MultiHydrantFactory = require 'meshblu-core-manager-hydrant/multi'
 debug = require('debug')('meshblu-core-protocol-adapter-mqtt:handler')
 async = require 'async'
 _     = require 'lodash'
 
 class MQTTHandler
-  constructor: ({@client, @jobManager, @messengerFactory, @server}) ->
+  constructor: ({@client, @jobManager, @hydrant, @server}) ->
     @JOB_MAP =
       'meshblu/request'  : @handleMeshbluRequest
       'meshblu/firehose' : @handleMeshbluFirehose
-    @messengers = {}
+    @firehoseReplyTopic = {}
+    @hydrant.on 'message', @_onHydrantMessage
 
   authenticateClient: (uuid, token, callback) =>
     auth = {uuid, token}
@@ -28,7 +28,6 @@ class MQTTHandler
     auth = payload?.auth or @client.auth
     @authenticateMeshblu auth, (error, success) =>
       return @_emitError(error, packet) if error? or !success
-      @messengers[auth.uuid]?.close()
       if payload?.connect
         return @_connectFirehose auth, payload, packet
       else
@@ -37,14 +36,14 @@ class MQTTHandler
   _connectFirehose: (auth, payload, packet) =>
     {uuid} = auth
     return unless uuid?
-    @messengers[uuid] = @_buildMessenger(payload.replyTopic)
-    @messengers[uuid].connect (error) =>
+    @hydrant.subscribe {uuid}, (error) =>
       return @_emitError(error, packet) if error?
-      async.each ['received', 'config'], (type, next) =>
-        @messengers[uuid].subscribe {type, uuid: auth.uuid}, next
-      , (error) =>
-        return @_emitError(error, packet) if error?
-        return @_emitPayload 'firehose', {connected: true}, payload
+      @firehoseReplyTopic[uuid] = payload.replyTopic
+      return @_emitPayload 'firehose', {connected: true}, payload
+
+  _onHydrantMessage: (channel, message) =>
+    message = JSON.parse message.rawData
+    @_emitPayload 'message', message, {replyTopic:@firehoseReplyTopic[channel], callbackId:false}
 
   handleMeshbluRequest: (packet) =>
     debug 'doing meshblu request...', packet
@@ -74,14 +73,6 @@ class MQTTHandler
       return JSON.parse packet?.payload
     catch error
       return
-
-  _buildMessenger: (replyTopic) =>
-    messenger = @messengerFactory.build()
-    messenger.on 'message', (channel, message) =>
-      @_emitPayload 'message', message, {replyTopic, callbackId:false}
-    messenger.on 'config', (channel, message) =>
-      @_emitPayload 'config', message, {replyTopic, callbackId:false}
-    return messenger
 
   _emitResponse: (response, payload) =>
     response ?= metadata:
