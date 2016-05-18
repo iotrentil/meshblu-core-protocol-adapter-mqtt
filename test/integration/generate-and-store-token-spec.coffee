@@ -3,7 +3,7 @@ Connection = require '../connection'
 describe 'Generate and Store Token', ->
   beforeEach (done) ->
     @connection = new Connection
-    @connection.connect (error, {@server, @client, @jobManager}) =>
+    @connection.connect (error, {@client, @jobManager}) =>
       return done error if error?
       done()
 

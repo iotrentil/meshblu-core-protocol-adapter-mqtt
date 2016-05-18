@@ -27,7 +27,7 @@ class Connection
     @client = mqtt.connect("mqtt://u:p@localhost:#{@port}")
     @client.on 'connect', =>
       # @client.subscribe 'u', (error, granted) =>
-      throw error if error?
+      # throw error if error?
         # throw new Error('Failed to subscribe') unless _.isEqual granted, [{topic: 'u', qos: 0}]
       callback null, @client
 
@@ -69,7 +69,10 @@ class Connection
   _respondToLoginAttempt: (callback) =>
     @jobManager.getRequest ['request'], (error, request) =>
       return callback error if error?
-      return callback new Error('no request received') unless request?
+      # return callback new Error('no request received') unless request?
+      console.log 'no request' unless request?
+      return @_respondToLoginAttempt(callback) unless request?
+      console.log login: {request}
 
       response =
         metadata:

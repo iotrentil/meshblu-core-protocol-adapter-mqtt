@@ -33,29 +33,14 @@ describe 'Connecting to the server anonymously', ->
 
   describe 'when a generic, anonymous mqtt client connects', ->
     beforeEach ->
-      # {port} = @sut.address()
       debug "connecting to #{@port}"
-      @client  = mqtt.connect("mqtt://localhost:#{@port}",{username:'mega',password:'awesome'})
+      @client  = mqtt.connect("mqtt://localhost:#{@port}")
 
     afterEach (done) ->
       @client.end true, done
 
-    describe 'when the job responds with a status 401', ->
-      beforeEach (done) ->
-        @jobManager.getRequest ['request'], (error, request) =>
-          return done error if error?
-          return done new Error('no request received') unless request?
+    beforeEach (done) ->
+      @client.on 'connect', (@msg) => done()
 
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 401
-              status: 'Forbidden'
-
-          @jobManager.createResponse 'response', response, (error) =>
-            return done error if error?
-
-        @client.on 'error', (@error) => done()
-
-      it 'should reject the connection an error', ->
-        expect(=> throw @error).to.throw 'Connection refused: Bad username or password'
+    it 'should not reject the connection', ->
+      expect(@msg.cmd).to.equals 'connack'

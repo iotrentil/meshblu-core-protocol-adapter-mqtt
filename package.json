@@ -48,6 +48,6 @@
     "meshblu-core-manager-messenger": "^2.1.0",
     "meshblu-core-redis-pooled-job-manager": "^1.3.0",
     "meshblu-uuid-alias-resolver": "^1.0.3",
-    "mosca": "^1.1.2"
+    "mosca": "^1.3.0"
   }
 }

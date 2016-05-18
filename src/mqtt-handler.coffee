@@ -1,3 +1,4 @@
+MultiHydrantFactory = require 'meshblu-core-manager-hydrant/multi'
 debug = require('debug')('meshblu-core-protocol-adapter-mqtt:handler')
 async = require 'async'
 _     = require 'lodash'
@@ -65,7 +66,6 @@ class MQTTHandler
     fn(packet)
 
   onClose: =>
-    console.log 'onClose'
     _.forEach @messengers, (messenger) =>
       messenger?.close()
 
