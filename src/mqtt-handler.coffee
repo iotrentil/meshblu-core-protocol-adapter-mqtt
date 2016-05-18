@@ -65,8 +65,7 @@ class MQTTHandler
     fn(packet)
 
   onClose: =>
-    _.forEach @messengers, (messenger) =>
-      messenger?.close()
+    @hydrant.close()
 
   _parsePayload: (packet) =>
     try
