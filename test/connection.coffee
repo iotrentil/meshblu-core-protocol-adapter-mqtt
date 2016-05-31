@@ -40,12 +40,12 @@ class Connection
       return callback error if error?
 
   _createJobManager: (callback) =>
-    client = new RedisNS 'ns', redis.createClient()
+    client = new RedisNS 'ns', redis.createClient(dropBufferSupport: true)
     @jobManager = new JobManager client: client, timeoutSeconds: 1
     return callback null, @jobManager
 
   _createRedisClient: (callback) =>
-    @redisClient = new RedisNS 'ns', redis.createClient()
+    @redisClient = new RedisNS 'ns', redis.createClient(dropBufferSupport: true)
     return callback null, @redisClient
 
   _createServer: (callback) =>

@@ -10,7 +10,7 @@ class MessengerFactory
     throw new Error('uuidAliasResolver is required') unless @uuidAliasResolver?
 
   build: =>
-    client = new RedisNS @namespace, redis.createClient(@redisUri)
+    client = new RedisNS @namespace, redis.createClient(@redisUri, dropBufferSupport: true)
     new MessengerManager {client, @uuidAliasResolver}
 
 module.exports = MessengerFactory

@@ -9,7 +9,7 @@ Server     = require '../../src/server'
 describe 'Connecting to the server with auth', ->
   beforeEach (done) ->
     @jobManager = new JobManager
-      client: new RedisNS 'ns', redis.createClient()
+      client: new RedisNS 'ns', redis.createClient(dropBufferSupport: true)
       timeoutSeconds: 1
 
     portfinder.getPort (error, port) =>
