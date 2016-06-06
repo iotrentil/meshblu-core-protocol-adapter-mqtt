@@ -1,3 +1,4 @@
+_            = require 'lodash'
 commander    = require 'commander'
 colors       = require 'colors'
 PACKAGE_JSON = require './package.json'
