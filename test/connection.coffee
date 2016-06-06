@@ -54,14 +54,15 @@ class Connection
       @server = new Server
         port: port
         redisUri: 'redis://localhost:6379'
+        firehouseRedisUri: 'redis://localhost:6379'
         namespace: 'ns'
         jobLogQueue: 'foo'
         jobLogRedisUri: 'redis://localhost:6379'
         jobLogSampleRate: 0
         jobTimeoutSeconds: 1
-        connectionPoolMaxConnections: 1
+        maxConnections: 1
 
-      @server.start (error) =>
+      @server.run (error) =>
         return callback error if error?
         return callback null, @server
 

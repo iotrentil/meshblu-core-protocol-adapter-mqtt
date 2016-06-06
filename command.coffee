@@ -4,32 +4,19 @@ PACKAGE_JSON = require './package.json'
 Server       = require './src/server'
 
 class Command
-  constructor: ({@argv}) ->
-
-  getOptions: =>
-    commander
-      .version PACKAGE_JSON.version
-      .option '-p, --port <1883>', 'Port to listen on (MESHBLU_SERVER_MQTT_PORT)'
-      .parse @argv
-
-    throw new Error('env JOB_LOG_QUEUE not set') unless process.env.JOB_LOG_QUEUE
-    throw new Error('env JOB_LOG_REDIS_URI not set') unless process.env.JOB_LOG_REDIS_URI
-    throw new Error('env JOB_LOG_SAMPLE_RATE not set') unless process.env.JOB_LOG_SAMPLE_RATE
-    throw new Error('env JOB_TIMEOUT_SECONDS not set') unless process.env.JOB_TIMEOUT_SECONDS
-    throw new Error('env MAX_CONNECTIONS not set') unless process.env.MAX_CONNECTIONS
-    throw new Error('env NAMESPACE not set') unless process.env.NAMESPACE
-    throw new Error('env REDIS_URI not set') unless process.env.REDIS_URI
-
-    return {
-      port: parseInt(commander.port || process.env.MESHBLU_SERVER_MQTT_PORT || 1883)
-      jobLogQueue: process.env.JOB_LOG_QUEUE
-      jobLogRedisUri: process.env.JOB_LOG_REDIS_URI
-      jobLogSampleRate: parseFloat process.env.JOB_LOG_SAMPLE_RATE
-      jobTimeoutSeconds: parseInt process.env.JOB_TIMEOUT_SECONDS
-      connectionPoolMaxConnections: parseInt process.env.MAX_CONNECTIONS
-      namespace: process.env.NAMESPACE
-      redisUri: process.env.REDIS_URI
-    }
+  constructor: ->
+    @serverOptions =
+      port:                         process.env.PORT || 1883
+      aliasServerUri:               process.env.ALIAS_SERVER_URI
+      redisUri:                     process.env.REDIS_URI
+      firehoseRedisUri:             process.env.FIREHOSE_REDIS_URI
+      namespace:                    process.env.NAMESPACE || 'meshblu'
+      jobTimeoutSeconds:            parseInt(process.env.JOB_TIMEOUT_SECONDS || 30)
+      maxConnections:               parseInt(process.env.CONNECTION_POOL_MAX_CONNECTIONS || 100)
+      disableLogging:               process.env.DISABLE_LOGGING == "true"
+      jobLogRedisUri:               process.env.JOB_LOG_REDIS_URI
+      jobLogQueue:                  process.env.JOB_LOG_QUEUE
+      jobLogSampleRate:             parseFloat(process.env.JOB_LOG_SAMPLE_RATE)
 
   panic: (error) =>
     console.error colors.red error.message
@@ -37,25 +24,28 @@ class Command
     process.exit 1
 
   run: =>
-    @server = new Server @getOptions()
-    @server.start (error) =>
-      @panic error if error?
+    @panic new Error('Missing required environment variable: REDIS_URI') if _.isEmpty @serverOptions.redisUri
+    @panic new Error('Missing required environment variable: FIREHOSE_REDIS_URI') if _.isEmpty @serverOptions.firehoseRedisUri
+    @panic new Error('Missing required environment variable: JOB_LOG_REDIS_URI') if _.isEmpty @serverOptions.jobLogRedisUri
+    @panic new Error('Missing required environment variable: JOB_LOG_QUEUE') if _.isEmpty @serverOptions.jobLogQueue
+    @panic new Error('Missing required environment variable: JOB_LOG_SAMPLE_RATE') unless _.isNumber @serverOptions.jobLogSampleRate
+
+    @server = new Server @serverOptions
+    @server.run (error) =>
+      return @panic error if error?
 
       {address, port} = @server.address()
       console.log "Server running on #{address}:#{port}"
 
-    process.on 'SIGTERM', @stop
+    process.on 'SIGTERM', =>
+      console.log 'SIGTERM caught, exiting'
+      server.stop =>
+        process.exit 0
 
-
-  stop: =>
-    console.log 'SIGTERM caught, exiting'
-    @server.stop =>
-      process.exit 0
-
-    setTimeout =>
-      console.log 'Server did not stop in time, exiting 0 manually'
-      process.exit 0
-    , 5000
+      setTimeout =>
+        console.log 'Server did not stop in time, exiting 0 manually'
+        process.exit 0
+      , 5000
 
 command = new Command argv: process.argv
 command.run()

@@ -1,35 +1,38 @@
-_                     = require 'lodash'
-mosca                 = require 'mosca'
-RedisPooledJobManager = require 'meshblu-core-redis-pooled-job-manager'
-redis                 = require 'ioredis'
-RedisNS               = require '@octoblu/redis-ns'
-UuidAliasResolver     = require 'meshblu-uuid-alias-resolver'
-MQTTHandler           = require './mqtt-handler'
-MessengerFactory      = require './messenger-factory'
+_                       = require 'lodash'
+mosca                   = require 'mosca'
+RedisPooledJobManager   = require 'meshblu-core-redis-pooled-job-manager'
+redis                   = require 'ioredis'
+RedisNS                 = require '@octoblu/redis-ns'
+UuidAliasResolver       = require 'meshblu-uuid-alias-resolver'
+MQTTHandler             = require './mqtt-handler'
+MessengerManagerFactory = require 'meshblu-core-manager-messenger/factory'
+colors                  = require 'colors'
 
 class Server
   constructor: (options) ->
-    {@port, redisUri, namespace, jobTimeoutSeconds, connectionPoolMaxConnections} = options
-    {jobLogQueue, jobLogRedisUri, jobLogSampleRate} = options
-    {aliasServerUri} = options
+    {
+      @disableLogging
+      @port
+      @aliasServerUri
+      @redisUri
+      @firehoseRedisUri
+      @namespace
+      @jobTimeoutSeconds
+      @maxConnections
+      @jobLogRedisUri
+      @jobLogQueue
+      @jobLogSampleRate
+    } = options
+    @panic 'missing @jobLogQueue', 2 unless @jobLogQueue?
+    @panic 'missing @jobLogRedisUri', 2 unless @jobLogRedisUri?
+    @panic 'missing @jobLogSampleRate', 2 unless @jobLogSampleRate?
 
-    @jobManager = new RedisPooledJobManager
-      jobLogIndexPrefix: 'metric:meshblu-core-protocol-adapter-mqtt'
-      jobLogType: 'meshblu-core-protocol-adapter-mqtt:request'
-      jobLogQueue: jobLogQueue
-      jobLogRedisUri: jobLogRedisUri
-      jobLogSampleRate: jobLogSampleRate
-      jobTimeoutSeconds: jobTimeoutSeconds
-      maxConnections: connectionPoolMaxConnections
-      namespace: namespace
-      redisUri: redisUri
-
-    uuidAliasClient = new RedisNS 'uuid-alias', redis.createClient(redisUri, dropBufferSupport: true)
+    uuidAliasClient = new RedisNS 'uuid-alias', redis.createClient(@redisUri, dropBufferSupport: true)
     uuidAliasResolver = new UuidAliasResolver
       cache: uuidAliasClient
-      aliasServerUri: aliasServerUri
+      aliasServerUri: @aliasServerUri
 
-    @messengerFactory = new MessengerFactory {uuidAliasResolver, redisUri, namespace}
+    @messengerFactory = new MessengerManagerFactory {uuidAliasResolver, @namespace, redisUri: @firehoseRedisUri}
 
   address: =>
     {address: '0.0.0.0', port: @port}
@@ -57,7 +60,25 @@ class Server
 
     client.handler.subscribe topic, callback
 
-  start: (callback) =>
+  panic: (message, exitCode, error) =>
+    error ?= new Error('generic error')
+    console.error colors.red message
+    console.error error?.stack
+    process.exit exitCode
+
+  run: (callback) =>
+    @jobManager = new RedisPooledJobManager {
+      jobLogIndexPrefix: 'metric:meshblu-core-protocol-adapter-mqtt'
+      jobLogType: 'meshblu-core-protocol-adapter-mqtt:request'
+      @jobTimeoutSeconds
+      @jobLogQueue
+      @jobLogRedisUri
+      @jobLogSampleRate
+      @maxConnections
+      @redisUri
+      @namespace
+    }
+
     @server = mosca.Server {@port}
 
     @server.on 'ready', => @onReady callback

@@ -23,9 +23,9 @@ describe 'Connecting to the server with auth', ->
         jobLogRedisUri: 'redis://localhost:6379'
         jobLogSampleRate: 0
         jobTimeoutSeconds: 1
-        connectionPoolMaxConnections: 1
+        maxConnections: 1
 
-      @sut.start done
+      @sut.run done
 
   afterEach (done) ->
     @sut.stop done
