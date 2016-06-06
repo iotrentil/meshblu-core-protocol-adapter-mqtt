@@ -1,6 +1,6 @@
 {
   "name": "meshblu-core-protocol-adapter-mqtt",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "MQTT Protocol Adapter for Meshblu",
   "main": "index.js",
   "scripts": {
@@ -43,6 +43,7 @@
     "commander": "^2.9.0",
     "ioredis": "^2.0.0",
     "lodash": "^4.6.1",
+    "meshblu-core-manager-messenger": "^2.3.3",
     "meshblu-core-redis-pooled-job-manager": "^2.4.2",
     "meshblu-uuid-alias-resolver": "^1.0.3",
     "mosca": "^1.1.2"

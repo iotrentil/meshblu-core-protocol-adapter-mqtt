@@ -20,6 +20,9 @@ class MQTTHandler
     @messenger.on 'config', (channel, message) =>
       @_emitEvent 'config', message
 
+    @messenger.on 'error', (error) =>
+      @messenger.close()
+
     @messenger.connect (error) =>
       return callback error if error?
       async.each ['received', 'config', 'data'], (type, next) =>
