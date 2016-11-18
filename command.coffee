@@ -11,6 +11,7 @@ class Command
       port:                         process.env.PORT || 1883
       aliasServerUri:               process.env.ALIAS_SERVER_URI
       redisUri:                     process.env.REDIS_URI
+      cacheRedisUri:                process.env.CACHE_REDIS_URI
       firehoseRedisUri:             process.env.FIREHOSE_REDIS_URI
       namespace:                    process.env.NAMESPACE || 'meshblu'
       jobTimeoutSeconds:            parseInt(process.env.JOB_TIMEOUT_SECONDS || 30)
@@ -29,6 +30,7 @@ class Command
 
   run: =>
     @panic new Error('Missing required environment variable: REDIS_URI') if _.isEmpty @serverOptions.redisUri
+    @panic new Error('Missing required environment variable: CACHE_REDIS_URI') if _.isEmpty @serverOptions.cacheRedisUri
     @panic new Error('Missing required environment variable: FIREHOSE_REDIS_URI') if _.isEmpty @serverOptions.firehoseRedisUri
     @panic new Error('Missing required environment variable: JOB_LOG_REDIS_URI') if _.isEmpty @serverOptions.jobLogRedisUri
     @panic new Error('Missing required environment variable: JOB_LOG_QUEUE') if _.isEmpty @serverOptions.jobLogQueue
