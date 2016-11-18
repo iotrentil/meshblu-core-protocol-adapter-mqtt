@@ -16,7 +16,7 @@ describe 'Whoami', ->
       @client.publish 'whoami', message, done
 
     it 'should create a whoami job', (done) ->
-      @jobManager.getRequest ['request'], (error, request) =>
+      @jobManager.getRequest (error, request) =>
         return done error if error?
 
         expect(request.metadata.responseId).to.exist
@@ -35,7 +35,7 @@ describe 'Whoami', ->
       beforeEach (done) ->
         @client.on 'error', (@error) => done()
 
-        @jobManager.getRequest ['request'], (error, request) =>
+        @jobManager.do (request, callback) =>
           return done error if error?
           return done new Error('no request received') unless request?
 
@@ -45,8 +45,7 @@ describe 'Whoami', ->
               code: 403
               status: 'Forbidden'
 
-          @jobManager.createResponse 'response', response, (error) =>
-            return done error if error?
+          callback null, response
 
       it 'should send an error message to the client', ->
         expect(=> throw @error).to.throw 'whoami failed: Forbidden'
@@ -55,7 +54,7 @@ describe 'Whoami', ->
       beforeEach (done) ->
         @client.on 'message', (@fakeTopic, @buffer) => done()
 
-        @jobManager.getRequest ['request'], (error, request) =>
+        @jobManager.do (request, callback) =>
           return done error if error?
           return done new Error('no request received') unless request?
 
@@ -66,8 +65,7 @@ describe 'Whoami', ->
               status: 'OK'
             rawData: '{"name":"foo"}'
 
-          @jobManager.createResponse 'response', response, (error) =>
-            return done error if error?
+          callback null, response
 
       it 'should send a success message to the client', ->
         message = JSON.parse @buffer.toString()
@@ -82,7 +80,7 @@ describe 'Whoami', ->
       beforeEach (done) ->
         @timeout 3000
         @client.on 'error', (@error) => done()
-        @jobManager.getRequest ['request'], (error, request) =>
+        @jobManager.do (request, callback) =>
           return done error if error?
 
       it 'should send an error message to the client', ->

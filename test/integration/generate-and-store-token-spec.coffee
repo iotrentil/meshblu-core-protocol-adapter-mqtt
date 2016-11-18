@@ -16,9 +16,7 @@ describe 'Generate and Store Token', ->
       @client.publish 'generateAndStoreToken', message, done
 
     it 'should create a generateAndStoreToken job', (done) ->
-      @jobManager.getRequest ['request'], (error, request) =>
-        return done error if error?
-
+      @jobManager.do (request, callback) =>
         expect(request.metadata.responseId).to.exist
         delete request.metadata.responseId # We don't know what its gonna be
 
@@ -35,18 +33,14 @@ describe 'Generate and Store Token', ->
       beforeEach (done) ->
         @client.on 'error', (@error) => done()
 
-        @jobManager.getRequest ['request'], (error, request) =>
-          return done error if error?
-          return done new Error('no request received') unless request?
-
+        @jobManager.do (request, callback) =>
           response =
             metadata:
               responseId: request.metadata.responseId
               code: 403
               status: 'Forbidden'
 
-          @jobManager.createResponse 'response', response, (error) =>
-            return done error if error?
+          callback null, response
 
       it 'should send an error message to the client', ->
         expect(=> throw @error).to.throw 'generateAndStoreToken failed: Forbidden'
@@ -55,10 +49,7 @@ describe 'Generate and Store Token', ->
       beforeEach (done) ->
         @client.on 'message', (@fakeTopic, @buffer) => done()
 
-        @jobManager.getRequest ['request'], (error, request) =>
-          return done error if error?
-          return done new Error('no request received') unless request?
-
+        @jobManager.do (request, callback) =>
           response =
             metadata:
               responseId: request.metadata.responseId
@@ -66,8 +57,7 @@ describe 'Generate and Store Token', ->
               status: 'No Content'
             rawData: '{"uuid":"u","token":"t"}'
 
-          @jobManager.createResponse 'response', response, (error) =>
-            return done error if error?
+          callback null, response
 
       it 'should send a success message to the client', ->
         message = JSON.parse @buffer.toString()
@@ -83,7 +73,7 @@ describe 'Generate and Store Token', ->
       beforeEach (done) ->
         @timeout 3000
         @client.on 'error', (@error) => done()
-        @jobManager.getRequest ['request'], (error, request) =>
+        @jobManager.do (request, callback) =>
           return done error if error?
 
       it 'should send an error message to the client', ->

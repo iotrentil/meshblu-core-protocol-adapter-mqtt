@@ -16,9 +16,7 @@ describe 'Reset Token', ->
       @client.publish 'resetToken', message, done
 
     it 'should create a resetToken job', (done) ->
-      @jobManager.getRequest ['request'], (error, request) =>
-        return done error if error?
-
+      @jobManager.getRequest (error, request) =>
         expect(request.metadata.responseId).to.exist
         delete request.metadata.responseId # We don't know what its gonna be
 
@@ -35,18 +33,14 @@ describe 'Reset Token', ->
       beforeEach (done) ->
         @client.on 'error', (@error) => done()
 
-        @jobManager.getRequest ['request'], (error, request) =>
-          return done error if error?
-          return done new Error('no request received') unless request?
-
+        @jobManager.do (request, callback) =>
           response =
             metadata:
               responseId: request.metadata.responseId
               code: 403
               status: 'Forbidden'
 
-          @jobManager.createResponse 'response', response, (error) =>
-            return done error if error?
+          callback null, response
 
       it 'should send an error message to the client', ->
         expect(=> throw @error).to.throw 'resetToken failed: Forbidden'
@@ -55,10 +49,7 @@ describe 'Reset Token', ->
       beforeEach (done) ->
         @client.on 'message', (@fakeTopic, @buffer) => done()
 
-        @jobManager.getRequest ['request'], (error, request) =>
-          return done error if error?
-          return done new Error('no request received') unless request?
-
+        @jobManager.do (request, callback) =>
           response =
             metadata:
               responseId: request.metadata.responseId
@@ -66,8 +57,7 @@ describe 'Reset Token', ->
               status: 'No Content'
             rawData: '{"uuid":"u","token":"t"}'
 
-          @jobManager.createResponse 'response', response, (error) =>
-            return done error if error?
+          callback null, response
 
       it 'should send a success message to the client', ->
         message = JSON.parse @buffer.toString()
@@ -83,7 +73,7 @@ describe 'Reset Token', ->
       beforeEach (done) ->
         @timeout 3000
         @client.on 'error', (@error) => done()
-        @jobManager.getRequest ['request'], (error, request) =>
+        @jobManager.do (request, callback) =>
           return done error if error?
 
       it 'should send an error message to the client', ->

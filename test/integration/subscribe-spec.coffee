@@ -13,7 +13,7 @@ describe 'Subscribing to messages', ->
   describe 'when making a subscription', ->
     beforeEach (done) ->
       @client.subscribe 'u2'
-      @jobManager.getRequest ['request'], (error, @request) =>
+      @jobManager.getRequest (error, @request) =>
         return done error if error?
         return done new Error('Got no request') unless @request?
         return done()
@@ -34,7 +34,7 @@ describe 'Subscribing to messages', ->
       @client.subscribe 'u2', (error, @granted) =>
         done error
 
-      @jobManager.getRequest ['request'], (error, request) =>
+      @jobManager.do (request, callback) =>
         return done error if error?
         return done new Error('Got no request') unless request?
         response =
@@ -43,8 +43,8 @@ describe 'Subscribing to messages', ->
             status: 'No Content'
             responseId: request.metadata.responseId
           rawData: '{"types":["received"]}'
-        @jobManager.createResponse 'response', response, (error) =>
-          return done error if error?
+
+        callback null, response
 
     it 'should have granted the subscription', ->
       expect(@granted).to.deep.equal [{topic: 'u2', qos: 0}]

@@ -16,7 +16,7 @@ describe 'Message', ->
       @client.publish 'message', message, done
 
     it 'should create a message job', (done) ->
-      @jobManager.getRequest ['request'], (error, request) =>
+      @jobManager.getRequest (error, request) =>
         return done error if error?
 
         expect(request.metadata.responseId).to.exist

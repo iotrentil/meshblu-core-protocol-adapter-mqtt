@@ -1,14 +1,18 @@
 _          = require 'lodash'
 async      = require 'async'
-JobManager = require 'meshblu-core-job-manager'
 mqtt       = require 'mqtt'
 portfinder = require 'portfinder'
-redis      = require 'ioredis'
+Redis      = require 'ioredis'
 RedisNS    = require '@octoblu/redis-ns'
 Server     = require '../src/server'
+UUID       = require 'uuid'
+{ JobManagerResponder } = require 'meshblu-core-job-manager'
 
 class Connection
   constructor: ->
+    queueId = UUID.v4()
+    @requestQueueName = "test:request:queue:#{queueId}"
+    @responseQueueName = "test:response:queue:#{queueId}"
 
   connect: (callback) =>
     async.series {
@@ -40,44 +44,56 @@ class Connection
       return callback error if error?
 
   _createJobManager: (callback) =>
-    client = new RedisNS 'ns', redis.createClient(dropBufferSupport: true)
-    @jobManager = new JobManager client: client, timeoutSeconds: 1
+    client = new RedisNS 'ns', new Redis 'localhost', dropBufferSupport: true
+    queueClient = new RedisNS 'ns', new Redis 'localhost', dropBufferSupport: true
+    @jobManager = new JobManagerResponder {
+      client
+      queueClient
+      jobTimeoutSeconds: 1
+      queueTimeoutSeconds: 1
+      jobLogSampleRate: 0
+      @requestQueueName
+      @responseQueueName
+    }
+
     return callback null, @jobManager
 
   _createRedisClient: (callback) =>
-    @redisClient = new RedisNS 'ns', redis.createClient(dropBufferSupport: true)
+    @redisClient = new RedisNS 'ns', new Redis 'localhost', dropBufferSupport: true
     return callback null, @redisClient
 
   _createServer: (callback) =>
     portfinder.getPort (error, port) =>
       return callback error if error?
-      @server = new Server
+      @server = new Server {
         port: port
         redisUri: 'redis://localhost:6379'
-        firehouseRedisUri: 'redis://localhost:6379'
+        cacheRedisUri: 'redis://localhost:6379'
+        firehoseRedisUri: 'redis://localhost:6379'
         namespace: 'ns'
         jobLogQueue: 'foo'
         jobLogRedisUri: 'redis://localhost:6379'
         jobLogSampleRate: 0
         jobTimeoutSeconds: 1
         maxConnections: 1
+        @requestQueueName
+        @responseQueueName
+      }
 
       @server.run (error) =>
         return callback error if error?
         return callback null, @server
 
   _respondToLoginAttempt: (callback) =>
-    @jobManager.getRequest ['request'], (error, request) =>
-      return callback error if error?
-      return callback new Error('no request received') unless request?
-
+    @jobManager.do (request, next) =>
       response =
         metadata:
           responseId: request.metadata.responseId
           code: 204
           status: 'No Content'
 
-      @jobManager.createResponse 'response', response, callback
+      next null, response
+    , callback
 
   _stopClient: (callback) =>
     @client.end true, callback

@@ -1,12 +1,13 @@
 _                       = require 'lodash'
 mosca                   = require 'mosca'
-RedisPooledJobManager   = require 'meshblu-core-redis-pooled-job-manager'
-redis                   = require 'ioredis'
+Redis                   = require 'ioredis'
 RedisNS                 = require '@octoblu/redis-ns'
 UuidAliasResolver       = require 'meshblu-uuid-alias-resolver'
 MQTTHandler             = require './mqtt-handler'
 MessengerManagerFactory = require 'meshblu-core-manager-messenger/factory'
 colors                  = require 'colors'
+JobLogger               = require 'job-logger'
+{ JobManagerRequester } = require 'meshblu-core-job-manager'
 
 class Server
   constructor: (options) ->
@@ -15,6 +16,7 @@ class Server
       @port
       @aliasServerUri
       @redisUri
+      @cacheRedisUri
       @firehoseRedisUri
       @namespace
       @jobTimeoutSeconds
@@ -22,12 +24,19 @@ class Server
       @jobLogRedisUri
       @jobLogQueue
       @jobLogSampleRate
+      @requestQueueName
+      @responseQueueName
     } = options
+    @panic 'missing @cacheRedisUri', 2 unless @cacheRedisUri?
+    @panic 'missing @redisUri', 2 unless @redisUri?
+    @panic 'missing @firehoseRedisUri', 2 unless @firehoseRedisUri?
     @panic 'missing @jobLogQueue', 2 unless @jobLogQueue?
     @panic 'missing @jobLogRedisUri', 2 unless @jobLogRedisUri?
     @panic 'missing @jobLogSampleRate', 2 unless @jobLogSampleRate?
+    @panic 'missing @requestQueueName', 2 unless @requestQueueName?
+    @panic 'missing @responseQueueName', 2 unless @responseQueueName?
 
-    uuidAliasClient = new RedisNS 'uuid-alias', redis.createClient(@redisUri, dropBufferSupport: true)
+    uuidAliasClient = new RedisNS 'uuid-alias', new Redis @cacheRedisUri, dropBufferSupport: true
     uuidAliasResolver = new UuidAliasResolver
       cache: uuidAliasClient
       aliasServerUri: @aliasServerUri
@@ -44,7 +53,7 @@ class Server
 
     request = {metadata: {jobType: 'Authenticate', auth: auth}}
 
-    @jobManager.do 'request', 'response', request, (error, response) =>
+    @jobManager.do request, (error, response) =>
       return callback error if error?
       return callback new Error('unauthorized') unless response.metadata.code == 204
       client.auth = auth
@@ -67,17 +76,34 @@ class Server
     process.exit exitCode
 
   run: (callback) =>
-    @jobManager = new RedisPooledJobManager {
-      jobLogIndexPrefix: 'metric:meshblu-core-protocol-adapter-mqtt'
-      jobLogType: 'meshblu-core-protocol-adapter-mqtt:request'
+    client = new RedisNS @namespace, new Redis @redisUri, dropBufferSupport: true
+    queueClient = new RedisNS @namespace, new Redis @redisUri, dropBufferSupport: true
+
+    jobLogger = new JobLogger
+      client: new Redis @jobLogRedisUri, dropBufferSupport: true
+      indexPrefix: 'metric:meshblu-core-protocol-adapter-mqtt'
+      type: 'meshblu-core-protocol-adapter-mqtt:request'
+      jobLogQueue: @jobLogQueue
+
+    @jobManager = new JobManagerRequester {
+      client
+      queueClient
       @jobTimeoutSeconds
-      @jobLogQueue
-      @jobLogRedisUri
       @jobLogSampleRate
-      @maxConnections
-      @redisUri
-      @namespace
+      @requestQueueName
+      @responseQueueName
+      queueTimeoutSeconds: @jobTimeoutSeconds
     }
+
+    @jobManager._do = @jobManager.do
+    @jobManager.do = (request, callback) =>
+      @jobManager._do request, (error, response) =>
+        jobLogger.log { error, request, response }, (jobLoggerError) =>
+          return callback jobLoggerError if jobLoggerError?
+          callback error, response
+
+    queueClient.on 'ready', =>
+      @jobManager.startProcessing()
 
     @server = mosca.Server {@port}
 
@@ -87,6 +113,7 @@ class Server
     @server.on 'published', @onPublished
 
   stop: (callback) =>
+    @jobManager?.stopProcessing()
     @server.close callback
 
   onConnect: (client) =>

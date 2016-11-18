@@ -51,7 +51,7 @@ class MQTTHandler
         auth: @client.auth
       rawData: packet.payload
 
-    @jobManager.do 'request', 'response', request, (error, response) =>
+    @jobManager.do request, (error, response) =>
       return @_emitError packet, error if error?
 
   handleUpdate: (packet) =>
@@ -66,7 +66,7 @@ class MQTTHandler
         toUuid: toUuid
       data: $set: _.omit(data, 'uuid', 'callbackId')
 
-    @jobManager.do 'request', 'response', request, (error, response) =>
+    @jobManager.do request, (error, response) =>
       return @_emitError packet, error if error?
       return @_emitError packet, new Error('No Response') unless response?
       unless response.metadata.code == 204
@@ -95,7 +95,7 @@ class MQTTHandler
         toUuid: uuid
       data: ['config', 'data', 'received']
 
-    @jobManager.do 'request', 'response', request, (error, response) =>
+    @jobManager.do request, (error, response) =>
       return callback error if error?
       return callback null, false unless response.metadata.code == 204
       data = JSON.parse response.rawData
@@ -112,7 +112,7 @@ class MQTTHandler
         auth: @client.auth
         toUuid: @client.auth.uuid
 
-    @jobManager.do 'request', 'response', request, (error, response) =>
+    @jobManager.do request, (error, response) =>
       return callback error if error?
       return callback new Error('No Response') unless response?
       return callback new Error("#{eventName} failed: #{response.metadata.status}") unless response.metadata.code == 200
