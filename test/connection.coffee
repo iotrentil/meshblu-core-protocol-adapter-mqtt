@@ -13,6 +13,8 @@ class Connection
     queueId = UUID.v4()
     @requestQueueName = "test:request:queue:#{queueId}"
     @responseQueueName = "test:response:queue:#{queueId}"
+    @namespace = 'ns'
+    @redisUri = 'redis://localhost'
 
   connect: (callback) =>
     async.series {
@@ -44,11 +46,10 @@ class Connection
       return callback error if error?
 
   _createJobManager: (callback) =>
-    client = new RedisNS 'ns', new Redis 'localhost', dropBufferSupport: true
-    queueClient = new RedisNS 'ns', new Redis 'localhost', dropBufferSupport: true
     @jobManager = new JobManagerResponder {
-      client
-      queueClient
+      @redisUri
+      @namespace
+      maxConnections: 1
       jobTimeoutSeconds: 1
       queueTimeoutSeconds: 1
       jobLogSampleRate: 0
@@ -56,7 +57,8 @@ class Connection
       @responseQueueName
     }
 
-    return callback null, @jobManager
+    @jobManager.start (error) =>
+      callback error, @jobManager
 
   _createRedisClient: (callback) =>
     @redisClient = new RedisNS 'ns', new Redis 'localhost', dropBufferSupport: true

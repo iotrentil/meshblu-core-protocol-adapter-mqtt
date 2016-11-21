@@ -76,9 +76,6 @@ class Server
     process.exit exitCode
 
   run: (callback) =>
-    client = new RedisNS @namespace, new Redis @redisUri, dropBufferSupport: true
-    queueClient = new RedisNS @namespace, new Redis @redisUri, dropBufferSupport: true
-
     jobLogger = new JobLogger
       client: new Redis @jobLogRedisUri, dropBufferSupport: true
       indexPrefix: 'metric:meshblu-core-protocol-adapter-mqtt'
@@ -86,14 +83,18 @@ class Server
       jobLogQueue: @jobLogQueue
 
     @jobManager = new JobManagerRequester {
-      client
-      queueClient
+      @namespace
+      @redisUri
+      maxConnections: 2
       @jobTimeoutSeconds
       @jobLogSampleRate
       @requestQueueName
       @responseQueueName
       queueTimeoutSeconds: @jobTimeoutSeconds
     }
+
+    @jobManager.once 'error', (error) =>
+      @panic 'fatal job manager error', 1, error
 
     @jobManager._do = @jobManager.do
     @jobManager.do = (request, callback) =>
@@ -102,19 +103,19 @@ class Server
           return callback jobLoggerError if jobLoggerError?
           callback error, response
 
-    queueClient.on 'ready', =>
-      @jobManager.startProcessing()
+    @jobManager.start (error) =>
+      return callback error if error?
 
-    @server = mosca.Server {@port}
+      @server = mosca.Server {@port}
 
-    @server.on 'ready', => @onReady callback
-    @server.on 'clientConnected', @onConnect
-    @server.on 'clientDisconnected', @onDisconnect
-    @server.on 'published', @onPublished
+      @server.on 'ready', => @onReady callback
+      @server.on 'clientConnected', @onConnect
+      @server.on 'clientDisconnected', @onDisconnect
+      @server.on 'published', @onPublished
 
   stop: (callback) =>
-    @jobManager?.stopProcessing()
-    @server.close callback
+    @jobManager.stop =>
+      @server.close callback
 
   onConnect: (client) =>
 

@@ -8,20 +8,30 @@ UUID       = require 'uuid'
 { JobManagerResponder } = require 'meshblu-core-job-manager'
 
 describe 'Connecting to the server anonymously', ->
-  beforeEach (done) ->
+  beforeEach ->
     queueId = UUID.v4()
     @requestQueueName = "test:request:queue:#{queueId}"
     @responseQueueName = "test:response:queue:#{queueId}"
+    @namespace = 'ns'
+    @redisUri = 'redis://localhost'
+
+  beforeEach (done) ->
     @jobManager = new JobManagerResponder {
-      client: new RedisNS 'ns', new Redis 'localhost', dropBufferSupport: true
-      queueClient: new RedisNS 'ns', new Redis 'localhost', dropBufferSupport: true
+      @namespace
+      @redisUri
+      maxConnections: 1
       jobTimeoutSeconds: 1
       queueTimeoutSeconds: 1
       jobLogSampleRate: 0
       @requestQueueName
       @responseQueueName
     }
+    @jobManager.start done
 
+  afterEach (done) ->
+    @jobManager.stop done
+
+  beforeEach (done) ->
     portfinder.getPort (error, port) =>
       return done error if error?
       @sut = new Server {
