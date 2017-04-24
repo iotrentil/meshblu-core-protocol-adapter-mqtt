@@ -9,7 +9,7 @@ UUID       = require 'uuid'
 { JobManagerResponder } = require 'meshblu-core-job-manager'
 
 class Connection
-  constructor: ->
+  constructor: ({@workerFunc})->
     queueId = UUID.v4()
     @requestQueueName = "test:request:queue:#{queueId}"
     @responseQueueName = "test:response:queue:#{queueId}"
@@ -27,6 +27,14 @@ class Connection
   stopAll: (callback) =>
     async.series [@_stopClient, @_stopServer, @_stopJobManager, @_stopRedisClient], callback
 
+  _workerFunc: (request, callback) =>
+    authResponse =
+      metadata:
+        code: 204
+
+    return callback null, authResponse if _.get(request, 'metadata.jobType') == 'Authenticate'
+    @workerFunc request, callback
+
   _createClient: (callback) =>
     callback = _.once callback
 
@@ -42,9 +50,6 @@ class Connection
       message = JSON.parse buffer.toString()
       @client.emit 'error', new Error(message.data.message) if message.topic == 'error'
 
-    @_respondToLoginAttempt (error) =>
-      return callback error if error?
-
   _createJobManager: (callback) =>
     @jobManager = new JobManagerResponder {
       @redisUri
@@ -55,6 +60,7 @@ class Connection
       jobLogSampleRate: 0
       @requestQueueName
       @responseQueueName
+      workerFunc: @_workerFunc
     }
 
     @jobManager.start (error) =>
@@ -85,17 +91,6 @@ class Connection
       @server.run (error) =>
         return callback error if error?
         return callback null, @server
-
-  _respondToLoginAttempt: (callback) =>
-    @jobManager.do (request, next) =>
-      response =
-        metadata:
-          responseId: request.metadata.responseId
-          code: 204
-          status: 'No Content'
-
-      next null, response
-    , callback
 
   _stopClient: (callback) =>
     @client.end true, callback

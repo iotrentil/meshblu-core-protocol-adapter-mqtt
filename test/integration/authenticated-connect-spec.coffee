@@ -16,6 +16,7 @@ describe 'Connecting to the server anonymously', ->
     @redisUri = 'redis://localhost'
 
   beforeEach (done) ->
+    @workerFunc = sinon.stub()
     @jobManager = new JobManagerResponder {
       @namespace
       @redisUri
@@ -25,6 +26,7 @@ describe 'Connecting to the server anonymously', ->
       jobLogSampleRate: 0
       @requestQueueName
       @responseQueueName
+      @workerFunc
     }
     @jobManager.start done
 
@@ -54,60 +56,51 @@ describe 'Connecting to the server anonymously', ->
   afterEach (done) ->
     @sut.stop done
 
-  describe 'when an mqtt client connects with a username/password', ->
-    beforeEach ->
+  describe 'when an mqtt client connects with a good username/password', ->
+    beforeEach (done) ->
+      response =
+        metadata:
+          code: 204
+      @workerFunc.yields null, response
+
       {port} = @sut.address()
-      @client  = mqtt.connect("mqtt://u:p@localhost:#{port}")
+      @client  = mqtt.connect "mqtt://u:p@localhost:#{port}"
+      @client.on 'connect', => done()
 
     afterEach (done) ->
       @client.end true, done
 
-    it 'should create an Authenticate job to the dispatcher', (done) ->
-      @jobManager.getRequest (error, request) =>
-        expect(request.metadata.responseId).to.exist
-        delete request.metadata.responseId # We don't know what its gonna be
+    it 'should create an Authenticate job to the dispatcher', ->
+      request =
+        metadata:
+          auth: {uuid: 'u', token: 'p'}
+          jobType: 'Authenticate'
+        rawData: 'null'
 
-        expect(request).to.containSubset
-          metadata:
-            auth: {uuid: 'u', token: 'p'}
-            jobType: 'Authenticate'
-          rawData: 'null'
-        done()
+      expect(@workerFunc.firstCall.args[0]).to.containSubset request
 
-    describe 'when the job responds with a status 204', ->
+    describe 'when the client subscribes to itself', ->
       beforeEach (done) ->
-        @jobManager.do (request, callback) =>
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 204
-              status: 'No Content'
-          callback null, response
-
-        @client.on 'connect', => done()
+        @client.subscribe 'u', (error, @granted) =>
+          return done error
 
       it 'should get here', ->
-        expect(true).to.be.true
+        expect(@granted).to.deep.equal [{topic: 'u', qos: 0}]
 
-      describe 'when the client subscribes to itself', ->
-        beforeEach (done) ->
-          @client.subscribe 'u', (error, @granted) =>
-            return done error
 
-        it 'should get here', ->
-          expect(@granted).to.deep.equal [{topic: 'u', qos: 0}]
+  describe 'when an mqtt client connects with a bad username/password', ->
+    beforeEach (done) ->
+      response =
+        metadata:
+          code: 401
+      @workerFunc.yields null, response
 
-    describe 'when the job responds with a status 401', ->
-      beforeEach (done) ->
-        @jobManager.do (request, callback) =>
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 401
-              status: 'Forbidden'
-          callback null, response
+      {port} = @sut.address()
+      @client = mqtt.connect "mqtt://u:p@localhost:#{port}"
+      @client.on 'error', (@error) => done()
 
-        @client.on 'error', (@error) => done()
+    afterEach (done) ->
+      @client.end true, done
 
-      it 'should emit an error', ->
-        expect(=> throw @error).to.throw 'Connection refused: Bad username or password'
+    it 'should emit an error', ->
+      expect(=> throw @error).to.throw 'Connection refused: Bad username or password'

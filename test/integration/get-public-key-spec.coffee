@@ -2,81 +2,48 @@ Connection = require '../connection'
 
 describe 'Get Public Key', ->
   beforeEach (done) ->
-    @connection = new Connection
-    @connection.connect (error, {@server, @client, @jobManager}) =>
-      return done error if error?
-      done()
+    @workerFunc = sinon.stub()
+    @connection = new Connection {@workerFunc}
+    @connection.connect (error, {@server, @client, @jobManager}={}) => done error
 
   afterEach (done) ->
     @connection.stopAll done
 
-  describe 'when getPublicKey is called', ->
+  describe 'when getPublicKey responds well', ->
     beforeEach (done) ->
+      @workerFunc.yields null, rawData: '{"publicKey": "pubnub"}', metadata: code: 200
       message = JSON.stringify callbackId: 'callback-eye-D'
-      @client.publish 'getPublicKey', message, done
+      @client.on 'message', (@topic, @buffer) => done()
+      @client.publish 'getPublicKey', message, (error) => done error if error?
 
-    it 'should create a getPublicKey job', (done) ->
-      @jobManager.getRequest (error, request) =>
-        return done error if error?
+    it 'should create a getPublicKey job', ->
+      expect(@workerFunc).to.have.been.called
+      expect(@workerFunc.firstCall.args[0]).to.containSubset
+        metadata:
+          jobType: 'GetDevicePublicKey'
+          auth: {uuid: 'u', token: 'p'}
+          toUuid: 'u'
+        rawData: 'null'
 
-        expect(request.metadata.responseId).to.exist
-        delete request.metadata.responseId # We don't know what its gonna be
+    it 'should respond with the data', ->
+      expect(JSON.parse @buffer.toString()).to.containSubset data: publicKey: "pubnub"
 
-        expect(request).to.containSubset
-          metadata:
-            jobType: 'GetDevicePublicKey'
-            auth: {uuid: 'u', token: 'p'}
-            toUuid: 'u'
-          rawData: 'null'
+  describe 'when the getPublicKey responds poorly', ->
+    beforeEach (done) ->
+      @workerFunc.yields null, metadata: {code: 403, status: 'Forbidden'}
+      message = JSON.stringify callbackId: 'callback-eye-D'
+      @client.publish 'getPublicKey', message, (error) => done error if error?
+      @client.on 'error', (@error) => done()
 
-        done()
+    it 'should send an error message to the client', ->
+      expect(=> throw @error).to.throw 'getPublicKey failed: Forbidden'
 
-    describe 'when the getPublicKey fails', ->
-      beforeEach (done) ->
-        @client.on 'error', (@error) => done()
+  describe 'when the getPublicKey responds never?', ->
+    beforeEach (done) ->
+      @timeout 3000
+      message = JSON.stringify callbackId: 'callback-eye-D'
+      @client.publish 'getPublicKey', message, (error) => done error if error?
+      @client.on 'error', (@error) => done()
 
-        @jobManager.do (request, callback) =>
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 403
-              status: 'Forbidden'
-
-          callback null, response
-
-      it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'getPublicKey failed: Forbidden'
-
-    describe 'when the getPublicKey succeeds', ->
-      beforeEach (done) ->
-        @client.on 'message', (@fakeTopic, @buffer) => done()
-
-        @jobManager.do (request, callback) =>
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 200
-              status: 'No Content'
-            rawData: '{"uuid":"u","token":"t"}'
-
-          callback null, response
-
-      it 'should send a success message to the client', ->
-        message = JSON.parse @buffer.toString()
-        expect(message).to.containSubset
-          topic: 'getPublicKey'
-          data:
-            uuid: 'u'
-            token: 't'
-          _request:
-            callbackId: 'callback-eye-D'
-
-    describe 'when the getPublicKey times out', ->
-      beforeEach (done) ->
-        @timeout 3000
-        @client.on 'error', (@error) => done()
-        @jobManager.do (request, callback) =>
-          return done error if error?
-
-      it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'Response timeout exceeded'
+    it 'should send an error message to the client', ->
+      expect(=> throw @error).to.throw 'Response timeout exceeded'

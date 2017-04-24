@@ -16,6 +16,7 @@ describe 'Connecting to the server anonymously', ->
     @redisUri = 'redis://localhost'
 
   beforeEach (done) ->
+    @workerFunc = sinon.stub()
     @jobManager = new JobManagerResponder {
       @namespace
       @redisUri
@@ -25,6 +26,7 @@ describe 'Connecting to the server anonymously', ->
       jobLogSampleRate: 0
       @requestQueueName
       @responseQueueName
+      @workerFunc
     }
     @jobManager.start done
 
@@ -64,16 +66,14 @@ describe 'Connecting to the server anonymously', ->
 
     describe 'when the job responds with a status 401', ->
       beforeEach (done) ->
-        @jobManager.do (request, callback) =>
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 401
-              status: 'Forbidden'
-
-          callback null, response
-
         @client.on 'error', (@error) => done()
+
+        response =
+          metadata:
+            code: 401
+            status: 'Forbidden'
+        @workerFunc.yields null, response
+
 
       it 'should reject the connection an error', ->
         expect(=> throw @error).to.throw 'Connection refused: Bad username or password'

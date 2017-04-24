@@ -1,8 +1,10 @@
 Connection = require '../connection'
-
+_ = require 'lodash'
 describe 'Generate and Store Token', ->
   beforeEach (done) ->
-    @connection = new Connection
+    @workerFunc = sinon.stub()
+
+    @connection = new Connection {@workerFunc}
     @connection.connect (error, {@server, @client, @jobManager}) =>
       return done error if error?
       done()
@@ -10,71 +12,59 @@ describe 'Generate and Store Token', ->
   afterEach (done) ->
     @connection.stopAll done
 
-  describe 'when generateAndStoreToken is called', ->
+  describe 'when generateAndStoreToken succeeds', ->
     beforeEach (done) ->
+      response =
+        metadata:
+          code: 200
+        rawData: JSON.stringify uuid: 'u', token: 't'
+      @workerFunc.yields null, response
       message = JSON.stringify callbackId: 'callback-eye-D'
-      @client.publish 'generateAndStoreToken', message, done
+      @client.on 'message', (topic, @buffer) => done()
+      @client.publish 'generateAndStoreToken', message, (error) =>
+        return done error if error?
 
-    it 'should create a generateAndStoreToken job', (done) ->
-      @jobManager.do (request, callback) =>
-        expect(request.metadata.responseId).to.exist
-        delete request.metadata.responseId # We don't know what its gonna be
+    it 'should create a generateAndStoreToken job', ->
+      expect(@workerFunc).to.have.been.called
+      request = @workerFunc.firstCall.args[0]
+      expect(request).to.have.deep.property 'metadata.responseId'
+      expect(request).to.containSubset
+        metadata:
+          jobType: 'CreateSessionToken'
+          auth: {uuid: 'u', token: 'p'}
+          toUuid: 'u'
+        rawData: 'null'
 
-        expect(request).to.containSubset
-          metadata:
-            jobType: 'CreateSessionToken'
-            auth: {uuid: 'u', token: 'p'}
-            toUuid: 'u'
-          rawData: 'null'
+    it 'should respond with the generated token', ->
+      message = JSON.parse @buffer.toString()
+      expect(message).to.containSubset
+        topic: 'generateAndStoreToken'
+        data:
+          uuid: 'u'
+          token: 't'
 
-        done()
+  describe 'when generateAndStoreToken fails', ->
+    beforeEach (done) ->
+      response =
+        metadata:
+          code: 403
+          status: 'Forbidden'
+      @workerFunc.yields null, response
+      message = JSON.stringify callbackId: 'callback-eye-D'
+      @client.publish 'generateAndStoreToken', message, (error) => return done error if error?
 
-    describe 'when the generateAndStoreToken fails', ->
-      beforeEach (done) ->
-        @client.on 'error', (@error) => done()
+      @client.on 'error', (@error) => done()
 
-        @jobManager.do (request, callback) =>
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 403
-              status: 'Forbidden'
+    it 'should send an error message to the client', ->
+      expect(=> throw @error).to.throw 'generateAndStoreToken failed: Forbidden'
 
-          callback null, response
+  describe 'when the generateAndStoreToken times out', ->
+    beforeEach (done) ->
+      @timeout 3000
+      @client.on 'error', (@error) => done()
+      message = JSON.stringify callbackId: 'callback-eye-D'
+      @client.publish 'generateAndStoreToken', message, (error) =>
+        done error if error?
 
-      it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'generateAndStoreToken failed: Forbidden'
-
-    describe 'when the generateAndStoreToken succeeds', ->
-      beforeEach (done) ->
-        @client.on 'message', (@fakeTopic, @buffer) => done()
-
-        @jobManager.do (request, callback) =>
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 200
-              status: 'No Content'
-            rawData: '{"uuid":"u","token":"t"}'
-
-          callback null, response
-
-      it 'should send a success message to the client', ->
-        message = JSON.parse @buffer.toString()
-        expect(message).to.containSubset
-          topic: 'generateAndStoreToken'
-          data:
-            uuid: 'u'
-            token: 't'
-          _request:
-            callbackId: 'callback-eye-D'
-
-    describe 'when the generateAndStoreToken times out', ->
-      beforeEach (done) ->
-        @timeout 3000
-        @client.on 'error', (@error) => done()
-        @jobManager.do (request, callback) =>
-          return done error if error?
-
-      it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'Response timeout exceeded'
+    it 'should send an error message to the client', ->
+      expect(=> throw @error).to.throw 'Response timeout exceeded'
