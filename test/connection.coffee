@@ -22,7 +22,7 @@ class Connection
       @_createJobManager
       @_createServer
       @_createClient
-    ], (error) => callback error, {@client}
+    ], (error) => callback error, {@client, @redisClient}
 
   stopAll: (callback) =>
     async.series [@_stopClient, @_stopServer, @_stopJobManager, @_stopRedisClient], callback
