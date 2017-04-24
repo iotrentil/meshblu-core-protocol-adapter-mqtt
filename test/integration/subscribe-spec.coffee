@@ -2,51 +2,34 @@ Connection = require '../connection'
 
 describe 'Subscribing to messages', ->
   beforeEach (done) ->
-    @connection = new Connection
-    @connection.connect (error, {@client, @jobManager, @redisClient}) =>
+    @workerFunc = sinon.stub()
+    @connection = new Connection {@workerFunc}
+    @connection.connect (error, {@client, @redisClient}={}) =>
       return done error if error?
       done()
 
   afterEach (done) ->
     @connection.stopAll done
 
-  describe 'when making a subscription', ->
+  describe 'when making a subscription responds well', ->
     beforeEach (done) ->
-      @client.subscribe 'u2'
-      @jobManager.getRequest (error, @request) =>
-        return done error if error?
-        return done new Error('Got no request') unless @request?
-        return done()
+      @workerFunc.yields null, {
+        metadata: {code: 204}
+        rawData: '{"types": ["received"]}'
+      }
+
+      @client.subscribe 'u2', (error, @granted) => done error
 
     it 'should create a GetAuthorizedSubscriptionTypes job', ->
-      expect(@request.metadata.responseId).to.exist
-      delete @request.metadata.responseId # We don't know what its gonna be
-
-      expect(@request).to.containSubset
+      expect(@workerFunc).to.have.been.called
+      expect(@workerFunc.firstCall.args[0]).to.containSubset
         metadata:
           auth: {uuid: 'u', token: 'p'}
           toUuid: 'u2'
           jobType: 'GetAuthorizedSubscriptionTypes'
         rawData: '["config","data","received"]'
 
-  describe 'when a subscription is made and is allowed', ->
-    beforeEach (done) ->
-      @client.subscribe 'u2', (error, @granted) =>
-        done error
-
-      @jobManager.do (request, callback) =>
-        return done error if error?
-        return done new Error('Got no request') unless request?
-        response =
-          metadata:
-            code: 204
-            status: 'No Content'
-            responseId: request.metadata.responseId
-          rawData: '{"types":["received"]}'
-
-        callback null, response
-
-    it 'should have granted the subscription', ->
+    it 'should grant the subscription', ->
       expect(@granted).to.deep.equal [{topic: 'u2', qos: 0}]
 
     describe 'when a message is sent', ->
@@ -57,6 +40,18 @@ describe 'Subscribing to messages', ->
 
         @redisClient.publish 'received:u2', '{"devices":["*"],"payload":"hi"}', (error) =>
           return done error if error?
+        return # stupid promises
 
       it 'should forward the message to the client', ->
         expect(@mqttMessage.topic).to.deep.equal 'message'
+
+  describe 'when a subscription is made and is not good k?', ->
+    beforeEach (done) ->
+      @workerFunc.yields null, {
+        metadata: {code: 403}
+      }
+
+      @client.subscribe 'u2', (error, @granted) => done error
+
+    it 'should not have granted the subscription', ->
+      expect(@granted).to.deep.equal [{topic: 'u2', qos: 128}]
