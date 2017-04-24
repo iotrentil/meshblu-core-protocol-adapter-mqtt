@@ -5,7 +5,7 @@ describe 'Generate and Store Token', ->
     @workerFunc = sinon.stub()
 
     @connection = new Connection {@workerFunc}
-    @connection.connect (error, {@server, @client, @jobManager}) =>
+    @connection.connect (error, {@client}) =>
       return done error if error?
       done()
 

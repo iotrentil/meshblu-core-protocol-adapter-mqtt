@@ -4,7 +4,7 @@ describe 'Get Public Key', ->
   beforeEach (done) ->
     @workerFunc = sinon.stub()
     @connection = new Connection {@workerFunc}
-    @connection.connect (error, {@server, @client, @jobManager}={}) => done error
+    @connection.connect (error, {@client}={}) => done error
 
   afterEach (done) ->
     @connection.stopAll done

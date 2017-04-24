@@ -17,12 +17,12 @@ class Connection
     @redisUri = 'redis://localhost'
 
   connect: (callback) =>
-    async.series {
-      redisClient: @_createRedisClient
-      jobManager: @_createJobManager
-      server: @_createServer
-      client: @_createClient
-    }, callback
+    async.series [
+      @_createRedisClient
+      @_createJobManager
+      @_createServer
+      @_createClient
+    ], (error) => callback error, {@client}
 
   stopAll: (callback) =>
     async.series [@_stopClient, @_stopServer, @_stopJobManager, @_stopRedisClient], callback
