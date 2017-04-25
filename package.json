@@ -1,6 +1,6 @@
 {
   "name": "meshblu-core-protocol-adapter-mqtt",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "MQTT Protocol Adapter for Meshblu",
   "main": "index.js",
   "scripts": {
