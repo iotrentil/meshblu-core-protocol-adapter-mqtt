@@ -2,86 +2,56 @@ Connection = require '../connection'
 
 describe 'Whoami', ->
   beforeEach (done) ->
-    @connection = new Connection
-    @connection.connect (error, {@server, @client, @jobManager}) =>
-      return done error if error?
-      done()
+    @workerFunc = sinon.stub()
+    @connection = new Connection {@workerFunc}
+    @connection.connect (error, {@client}={}) => done error
 
   afterEach (done) ->
     @connection.stopAll done
 
-  describe 'when whoami is called', ->
+  describe 'when whoami is called and it responds with great success', ->
     beforeEach (done) ->
+      @workerFunc.yields null, rawData: '{"iam":"here"}', metadata: code: 200
+      @client.on 'message', (topic, @buffer) => done()
       message = JSON.stringify callbackId: 'callback-eye-D'
-      @client.publish 'whoami', message, done
-
-    it 'should create a whoami job', (done) ->
-      @jobManager.getRequest (error, request) =>
+      @client.publish 'whoami', message, (error) =>
         return done error if error?
 
-        expect(request.metadata.responseId).to.exist
-        delete request.metadata.responseId # We don't know what its gonna be
+    it 'should create a whoami job', ->
+      expect(@workerFunc).to.have.been.called
+      expect(@workerFunc.firstCall.args[0]).to.containSubset
+        metadata:
+          jobType: 'GetDevice'
+          auth: {uuid: 'u', token: 'p'}
+          toUuid: 'u'
+        rawData: 'null'
 
-        expect(request).to.containSubset
-          metadata:
-            jobType: 'GetDevice'
-            auth: {uuid: 'u', token: 'p'}
-            toUuid: 'u'
-          rawData: 'null'
+    it 'should send a success message to the client', ->
+      message = JSON.parse @buffer.toString()
+      expect(message).to.containSubset
+        topic: 'whoami'
+        data:
+          iam: 'here'
+        _request:
+          callbackId: 'callback-eye-D'
 
-        done()
+  describe 'when whoami is called and it responds with great failure', ->
+    beforeEach (done) ->
+      @workerFunc.yields null, metadata: code: 403, status: 'Forbidden'
+      @client.on 'error', (@error) => done()
+      message = JSON.stringify callbackId: 'callback-eye-D'
+      @client.publish 'whoami', message, (error) =>
+        return done error if error?
 
-    describe 'when the whoami fails', ->
-      beforeEach (done) ->
-        @client.on 'error', (@error) => done()
+    it 'should yield an error', ->
+      expect(=> throw @error).to.throw 'Forbidden'
 
-        @jobManager.do (request, callback) =>
-          return done error if error?
-          return done new Error('no request received') unless request?
+  describe 'when whoami is called and it responds with great failure', ->
+    beforeEach (done) ->
+      @client.on 'error', (@error) => done()
+      message = JSON.stringify callbackId: 'callback-eye-D'
+      @client.publish 'whoami', message, (error) =>
+        return done error if error?
 
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 403
-              status: 'Forbidden'
-
-          callback null, response
-
-      it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'whoami failed: Forbidden'
-
-    describe 'when the whoami succeeds', ->
-      beforeEach (done) ->
-        @client.on 'message', (@fakeTopic, @buffer) => done()
-
-        @jobManager.do (request, callback) =>
-          return done error if error?
-          return done new Error('no request received') unless request?
-
-          response =
-            metadata:
-              responseId: request.metadata.responseId
-              code: 200
-              status: 'OK'
-            rawData: '{"name":"foo"}'
-
-          callback null, response
-
-      it 'should send a success message to the client', ->
-        message = JSON.parse @buffer.toString()
-        expect(message).to.containSubset
-          topic: 'whoami'
-          data:
-            name: 'foo'
-          _request:
-            callbackId: 'callback-eye-D'
-
-    describe 'when the whoami times out', ->
-      beforeEach (done) ->
-        @timeout 3000
-        @client.on 'error', (@error) => done()
-        @jobManager.do (request, callback) =>
-          return done error if error?
-
-      it 'should send an error message to the client', ->
-        expect(=> throw @error).to.throw 'Response timeout exceeded'
+    it 'should yield an error', ->
+      expect(=> throw @error).to.throw 'timeout'
