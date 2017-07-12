@@ -8,7 +8,7 @@ UUID         = require 'uuid'
 class Command
   constructor: ->
     @serverOptions =
-      port:                         parseInt(process.env.PORT || 1883)
+      port:                         parseInt(process.env.PORT || 8883)
       aliasServerUri:               process.env.ALIAS_SERVER_URI
       redisUri:                     process.env.REDIS_URI
       cacheRedisUri:                process.env.CACHE_REDIS_URI

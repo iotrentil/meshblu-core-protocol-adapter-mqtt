@@ -106,7 +106,7 @@ class Server
     @jobManager.start (error) =>
       return callback error if error?
 
-      @server = mosca.Server {@port, http: { port: 8883, bundle: true, static: './'}}
+      @server = mosca.Server {http: { port: @port, bundle: true, static: './'}}
 
       @server.on 'ready', => @onReady callback
       @server.on 'clientConnected', @onConnect

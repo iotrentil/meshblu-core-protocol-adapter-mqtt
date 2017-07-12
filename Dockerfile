@@ -1,6 +1,5 @@
 FROM octoblu/node:7-alpine-gyp
 
-EXPOSE 1883
 EXPOSE 8883
 
 RUN mkdir -p /usr/src/app
