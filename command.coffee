@@ -8,20 +8,20 @@ UUID         = require 'uuid'
 class Command
   constructor: ->
     @serverOptions =
-      port:                         parseInt(process.env.PORT || 1883)
-      aliasServerUri:               process.env.ALIAS_SERVER_URI
+      port:                         parseInt(process.env.PORT ? 1883)
+      aliasServerUri:               process.env.ALIAS_SERVER_URI ? ''
       redisUri:                     process.env.REDIS_URI
-      cacheRedisUri:                process.env.CACHE_REDIS_URI
-      firehoseRedisUri:             process.env.FIREHOSE_REDIS_URI
-      namespace:                    process.env.NAMESPACE || 'meshblu'
-      jobTimeoutSeconds:            parseInt(process.env.JOB_TIMEOUT_SECONDS || 30)
-      maxConnections:               parseInt(process.env.CONNECTION_POOL_MAX_CONNECTIONS || 100)
-      disableLogging:               process.env.DISABLE_LOGGING == "true"
-      jobLogRedisUri:               process.env.JOB_LOG_REDIS_URI
-      jobLogQueue:                  process.env.JOB_LOG_QUEUE
-      jobLogSampleRate:             parseFloat(process.env.JOB_LOG_SAMPLE_RATE)
-      requestQueueName:             process.env.REQUEST_QUEUE_NAME
-      responseQueueBaseName:        process.env.RESPONSE_QUEUE_BASE_NAME
+      cacheRedisUri:                process.env.CACHE_REDIS_URI ? process.env.REDIS_URI
+      firehoseRedisUri:             process.env.FIREHOSE_REDIS_URI ? process.env.REDIS_URI
+      namespace:                    process.env.NAMESPACE ? 'meshblu'
+      jobTimeoutSeconds:            parseInt(process.env.JOB_TIMEOUT_SECONDS ? 30)
+      maxConnections:               parseInt(process.env.CONNECTION_POOL_MAX_CONNECTIONS ? 100)
+      disableLogging:               (process.env.DISABLE_LOGGING ? 'true') == "true"
+      jobLogRedisUri:               process.env.JOB_LOG_REDIS_URI ? process.env.REDIS_URI
+      jobLogQueue:                  process.env.JOB_LOG_QUEUE ? 'sample-rate:1.00'
+      jobLogSampleRate:             parseFloat(process.env.JOB_LOG_SAMPLE_RATE ? 0)
+      requestQueueName:             process.env.REQUEST_QUEUE_NAME ? 'v2:request:queue'
+      responseQueueBaseName:        process.env.RESPONSE_QUEUE_BASE_NAME ? 'v2:response:queue'
 
   panic: (error) =>
     console.error colors.red error.message

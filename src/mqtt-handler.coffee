@@ -15,10 +15,10 @@ class MQTTHandler
     @messenger = @messengerFactory.build()
 
     @messenger.on 'message', (channel, message) =>
-      @_emitEvent 'message', message
+      @_emitEvent 'message', channel, message
 
     @messenger.on 'config', (channel, message) =>
-      @_emitEvent 'config', message
+      @_emitEvent 'config', channel, message
 
     @messenger.on 'error', (error) =>
       @messenger.close()
@@ -93,12 +93,13 @@ class MQTTHandler
         jobType: 'GetAuthorizedSubscriptionTypes'
         auth: @client.auth
         toUuid: uuid
-      data: ['config', 'data', 'received']
+      data: { types: ['config', 'data', 'received'] }
 
     @jobManager.do request, (error, response) =>
       return callback error if error?
       return callback null, false unless response.metadata.code == 204
       data = JSON.parse response.rawData
+      console.log "subscribe[#{uuid}] : " + JSON.stringify data.types
       async.each data.types, (type, next) =>
         @messenger.subscribe {type, uuid: uuid}, next
       , (error) =>
@@ -121,9 +122,10 @@ class MQTTHandler
   _emitError: (originalPacket, error) =>
     @_emitTopic originalPacket, 'error', message: error.message
 
-  _emitEvent: (topic, payload) =>
+  _emitEvent: (topic, channel, payload) =>
+    uuid = _.last channel.split /:/
     packet =
-      topic: @client.auth.uuid
+      topic: uuid
       payload: JSON.stringify
         topic: topic
         data: payload
