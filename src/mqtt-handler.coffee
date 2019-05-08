@@ -99,6 +99,7 @@ class MQTTHandler
       return callback error if error?
       return callback null, false unless response.metadata.code == 204
       data = JSON.parse response.rawData
+      console.log "subscribe#{uuid} : " + JSON.stringify data
       async.each data.types, (type, next) =>
         @messenger.subscribe {type, uuid: uuid}, next
       , (error) =>
