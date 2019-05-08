@@ -93,7 +93,7 @@ class MQTTHandler
         jobType: 'GetAuthorizedSubscriptionTypes'
         auth: @client.auth
         toUuid: uuid
-      data: { types: ['config', 'data', 'received'] }
+      data: { types: ['config', 'data', 'received', 'broadcast'] }
 
     @jobManager.do request, (error, response) =>
       return callback error if error?
