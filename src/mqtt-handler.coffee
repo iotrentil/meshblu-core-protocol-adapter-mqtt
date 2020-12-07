@@ -55,23 +55,27 @@ class MQTTHandler
       return @_emitError packet, error if error?
 
   handleUpdate: (packet) =>
-    data = JSON.parse packet.payload
-    toUuid = data.uuid ? @client.auth.uuid
-    callbackId = data.callbackId
+    try
+      data = JSON.parse packet.payload
+      toUuid = data.uuid ? @client.auth.uuid
+      callbackId = data.callbackId
 
-    request =
-      metadata:
-        jobType: 'UpdateDevice'
-        auth: @client.auth
-        toUuid: toUuid
-      data: $set: _.omit(data, 'uuid', 'callbackId')
+      request =
+        metadata:
+          jobType: 'UpdateDevice'
+          auth: @client.auth
+          toUuid: toUuid
+        data: $set: _.omit(data, 'uuid', 'callbackId')
 
-    @jobManager.do request, (error, response) =>
-      return @_emitError packet, error if error?
-      return @_emitError packet, new Error('No Response') unless response?
-      unless response.metadata.code == 204
-        return @_emitError packet, new Error("update failed: #{response.metadata.status}")
-      return @_emitTopic packet, 'update', {}
+      @jobManager.do request, (error, response) =>
+        return @_emitError packet, error if error?
+        return @_emitError packet, new Error('No Response') unless response?
+        unless response.metadata.code == 204
+          return @_emitError packet, new Error("update failed: #{response.metadata.status}")
+        return @_emitTopic packet, 'update', {}
+    catch (e)
+      return @_emitError packet, new Error("handleUpdate Json parse Error: #{e}")
+
 
   handleWhoami: (packet) =>
     @_doJob 'GetDevice', 'whoami', (error, response) =>
