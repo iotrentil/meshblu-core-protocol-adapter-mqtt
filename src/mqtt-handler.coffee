@@ -62,7 +62,7 @@ class MQTTHandler
 
       request =
         metadata:
-          jobType: 'UpdateDevice'
+          jobType: 'UpdateDevice' 
           auth: @client.auth
           toUuid: toUuid
         data: $set: _.omit(data, 'uuid', 'callbackId')
