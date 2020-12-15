@@ -11,7 +11,7 @@ class MQTTHandler
       'update':                @handleUpdate
       'whoami':                @handleWhoami
 
-  initialize: (callback) =>
+  initialize: (callback) =>  
     @messenger = @messengerFactory.build()
 
     @messenger.on 'message', (channel, message) =>
