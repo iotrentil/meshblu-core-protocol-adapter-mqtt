@@ -74,6 +74,8 @@ class MQTTHandler
           return @_emitError packet, new Error("update failed: #{response.metadata.status}")
         return @_emitTopic packet, 'update', {}
     catch e
+      packet = {}
+      packet.payload = {}
       return @_emitError {}, new Error("handleUpdate Json parse Error: #{e}")
 
 
