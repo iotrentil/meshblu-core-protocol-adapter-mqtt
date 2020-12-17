@@ -76,7 +76,7 @@ class MQTTHandler
     catch e
       packet = {}
       packet.payload = {}
-      return @_emitError {}, new Error("handleUpdate Json parse Error: #{e}")
+      return @_emitError packet, new Error("handleUpdate Json parse Error: #{e}")
 
 
   handleWhoami: (packet) =>
