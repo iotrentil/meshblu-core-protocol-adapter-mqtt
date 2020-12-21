@@ -138,12 +138,14 @@ class MQTTHandler
     @server.publish packet
 
   _emitTopic: (originalPacket, topic, payload) =>
+    _payloadstr = ""
+    _payloadstr = originalPacket.payload.toString() if originalPacket?.payload?
     packet =
       topic: @client.auth.uuid
       payload: JSON.stringify
         topic: topic
         data: payload
-        _request: JSON.parse(originalPacket.payload.toString())
+        _request: JSON.parse(_payloadstr)
     @server.publish packet
 
 module.exports = MQTTHandler
