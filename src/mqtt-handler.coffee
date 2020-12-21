@@ -74,8 +74,7 @@ class MQTTHandler
           return @_emitError packet, new Error("update failed: #{response.metadata.status}")
         return @_emitTopic packet, 'update', {}
     catch e
-      packet = {}
-      packet.payload = {}
+      packet = null
       return @_emitError packet, new Error("handleUpdate Json parse Error: #{e}")
 
 
@@ -139,9 +138,11 @@ class MQTTHandler
 
   _emitTopic: (originalPacket, topic, payload) =>
     _payloadstr = '{}'
-    _payloadstr = originalPacket.payload.toString() if originalPacket?.payload?
+    if originalPacket?.payload?
+      console.log "_payloadstr : #{JSON.stringify(_payloadstr)}"
+      _payloadstr = originalPacket.payload.toString()
 
-    console.log "_payloadstr : #{JSON.stringify(_payloadstr)}"
+    
     packet =
       topic: @client.auth.uuid
       payload: JSON.stringify
