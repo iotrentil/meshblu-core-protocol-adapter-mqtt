@@ -139,9 +139,7 @@ class MQTTHandler
   _emitTopic: (originalPacket, topic, payload) =>
     _payloadstr = '{}'
     if originalPacket?.payload?
-      console.log "_payloadstr : #{JSON.stringify(_payloadstr)}"
       _payloadstr = originalPacket.payload.toString()
-
     
     packet =
       topic: @client.auth.uuid
