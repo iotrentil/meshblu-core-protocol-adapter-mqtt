@@ -138,7 +138,7 @@ class MQTTHandler
     @server.publish packet
 
   _emitTopic: (originalPacket, topic, payload) =>
-    _payloadstr = ""
+    _payloadstr = "{}"
     _payloadstr = originalPacket.payload.toString() if originalPacket?.payload?
     packet =
       topic: @client.auth.uuid
